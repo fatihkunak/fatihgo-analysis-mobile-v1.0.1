@@ -1,0 +1,46 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                    EXPO CLOUD BUILD - QUICK REFERENCE                      ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+📋 CHECKLIST
+───────────────────────────────────────────────────────────────────────────
+□ Expo hesabı oluşturdum (https://expo.dev)
+□ Proje dosyalarını indirdim
+□ Node.js 18+ yükledim
+□ Terminal'de proje klasörüne girdim
+
+⚙️ KOMUTLAR (Sırasıyla Çalıştırın)
+───────────────────────────────────────────────────────────────────────────
+1. npm install -g eas-cli
+2. eas login
+3. npm install
+4. eas build --platform android
+
+⏱️ BEKLEME SÜRESİ
+───────────────────────────────────────────────────────────────────────────
+• İlk build: 10-15 dakika
+• Sonraki buildler: 5-10 dakika
+• Expo dashboard'da ilerleme izleyebilirsiniz
+
+📱 SONUÇ
+───────────────────────────────────────────────────────────────────────────
+Build tamamlandığında:
+✓ APK indirme linki verilecek
+✓ Android cihazınıza yükleyin
+✓ Uygulamayı test edin
+
+🔗 BAĞLANTILAR
+───────────────────────────────────────────────────────────────────────────
+• Expo: https://expo.dev
+• EAS Docs: https://docs.expo.dev/eas/build/
+• Build Dashboard: https://expo.dev/builds
+
+❓ SORUN YAŞARSANIZ
+───────────────────────────────────────────────────────────────────────────
+1. EXPO_CLOUD_BUILD_STEPS.md dosyasını okuyun
+2. BUILD_GUIDE.md'deki sorun giderme bölümüne bakın
+3. Hata mesajını paylaşın
+
+═══════════════════════════════════════════════════════════════════════════════
+FATIHGO ANALYSIS MOBILE - PRODUCTION BUILD
+═══════════════════════════════════════════════════════════════════════════════

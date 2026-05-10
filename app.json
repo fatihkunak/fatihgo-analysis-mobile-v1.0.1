@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "fatihgo-analysis-mobile",
+    "slug": "fatihgo-analysis-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/images/icon.png",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fatihkunak.fatihgoanalysis"
+    },
+    "android": {
+      "package": "com.fatihkunak.fatihgoanalysis"
+    }
+  }
+}

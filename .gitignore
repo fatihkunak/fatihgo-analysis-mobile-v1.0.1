@@ -3,8 +3,8 @@
 # dependencies
 node_modules/
 .expo/
-android/
-ios/
+# android/
+# ios/
 b/
 .DS_Store
 *.log
@@ -49,8 +49,8 @@ yarn-error.*
 app-example
 
 # generated native folders
-/ios
-/android
+# /ios
+# /android
 
 # IDE
 .vscode/
@@ -67,6 +67,8 @@ logs
 Thumbs.db
 
 # Build files
+ios/build/
+android/app/build/
 *.tgz
 *.tar.gz
 .cache/

@@ -5,8 +5,21 @@ import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "react-native-reanimated";
-import { Platform } from "react-native";
+import { Platform, Alert } from "react-native";
 import "@/lib/_core/nativewind-pressable";
+import { setJSExceptionHandler } from 'react-native-exception-handler';
+
+// Global hata yakalayıcı
+setJSExceptionHandler((error, isFatal) => {
+  console.log('=== JS HATA ===', error.name, error.message);
+  if (isFatal) {
+    Alert.alert(
+      'Kritik Hata',
+      `Uygulama devam edemiyor.\n\n${error.message}`,
+      [{ text: 'Kapat' }]
+    );
+  }
+}, true);
 import { ThemeProvider } from "@/lib/theme-provider";
 import {
   SafeAreaFrameContext,

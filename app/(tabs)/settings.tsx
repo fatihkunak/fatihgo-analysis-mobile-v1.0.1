@@ -3,6 +3,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { useState, useEffect } from "react";
 import { useColors } from "@/hooks/use-colors";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { loadKeys as loadGeminiKeys, testGeminiAPI } from "@/lib/gemini-api";
 import { testYoutubeApiConnection } from "@/lib/youtube-api";
 
 export default function SettingsScreen() {
@@ -13,7 +14,9 @@ export default function SettingsScreen() {
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [savedMessage, setSavedMessage] = useState("");
   const [testingApi, setTestingApi] = useState(false);
+  const [testingGemini, setTestingGemini] = useState(false);
   const [apiStatus, setApiStatus] = useState<{ success: boolean; message: string } | null>(null);
+  const [geminiStatus, setGeminiStatus] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     loadKeys();
@@ -81,6 +84,27 @@ export default function SettingsScreen() {
       setApiStatus({ success: false, message: `❌ Test hatası: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}` });
     } finally {
       setTestingApi(false);
+    }
+  };
+
+  const testGemini = async () => {
+    if (!geminiKey.trim()) {
+      Alert.alert("Hata", "Lütfen önce Gemini API Key'i girin.");
+      return;
+    }
+
+    setTestingGemini(true);
+    try {
+      const success = await testGeminiAPI(geminiKey);
+      if (success) {
+        setGeminiStatus({ success: true, message: "✅ Gemini API bağlantısı başarılı!" });
+      } else {
+        setGeminiStatus({ success: false, message: "❌ Gemini API anahtarı geçersiz veya kısıtlı." });
+      }
+    } catch (error) {
+      setGeminiStatus({ success: false, message: `❌ Test hatası: ${error instanceof Error ? error.message : 'Bilinmeyen hata'}` });
+    } finally {
+      setTestingGemini(false);
     }
   };
 
@@ -165,13 +189,31 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            onPress={saveGeminiKey}
-            className="p-3 rounded-lg"
-            style={{ backgroundColor: colors.primary }}
-          >
-            <Text className="text-center text-background font-semibold">💾 Gemini Key Kaydet</Text>
-          </TouchableOpacity>
+          <View className="flex-row gap-2 mb-3">
+            <TouchableOpacity
+              onPress={saveGeminiKey}
+              className="flex-1 p-3 rounded-lg"
+              style={{ backgroundColor: colors.primary }}
+            >
+              <Text className="text-center text-background font-semibold">💾 Gemini Key Kaydet</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={testGemini}
+              disabled={testingGemini}
+              className="flex-1 p-3 rounded-lg"
+              style={{ backgroundColor: colors.border, opacity: testingGemini ? 0.5 : 1 }}
+            >
+              <Text className="text-center text-foreground font-semibold">🧪 Test Et</Text>
+            </TouchableOpacity>
+          </View>
+
+          {geminiStatus && (
+            <View className={`p-3 rounded-lg mb-3 ${geminiStatus.success ? 'bg-success' : 'bg-error'}`}>
+              <Text className="text-sm text-background">
+                {geminiStatus.message}
+              </Text>
+            </View>
+          )}
 
           <Text className="text-xs text-muted mt-3">
             Gelişmiş AI özellikleri için Gemini API anahtarı ekleyin

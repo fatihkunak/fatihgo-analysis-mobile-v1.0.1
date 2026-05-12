@@ -6,13 +6,35 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/images/icon.png",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.fatihkunak.fatihgoanalysis"
+      "bundleIdentifier": "com.fatihkunak.fatihgoanalysis",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
-      "package": "com.fatihkunak.fatihgoanalysis"
+      "package": "com.fatihkunak.fatihgoanalysis",
+      "permissions": [
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "plugins": [
+      "react-native-video"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b491de56-d5ae-4d95-b739-841960ac17a1"
+      }
     }
   }
 }

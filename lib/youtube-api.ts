@@ -1,9 +1,28 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import ytdl from "react-native-ytdl";
+import * as FileSystem from 'expo-file-system';
 
 export interface VideoData {
   title: string;
   channel: string;
+  description: string;
+  duration: string;
+  durationInSeconds: number;
+  viewCount: string;
+  likeCount: string;
+  commentCount: string;
+  engagementRate: string;
 }
+
+// ISO 8601 Duration parser (PT1M30S -> 90)
+export const parseISO8601Duration = (duration: string): number => {
+  const match = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!match) return 0;
+  const hours = parseInt(match[1] || "0");
+  const minutes = parseInt(match[2] || "0");
+  const seconds = parseInt(match[3] || "0");
+  return hours * 3600 + minutes * 60 + seconds;
+};
 
 // Load YouTube API key from AsyncStorage
 export const loadYoutubeApiKey = async (): Promise<string | null> => {
@@ -91,7 +110,7 @@ export const fetchVideoData = async (
 
   try {
     console.log(`YouTube API çağrılıyor: videoId=${videoId} | Key: ${maskApiKey(trimmedKey)}`);
-    const apiUrl = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=${trimmedKey}&part=snippet,statistics`;
+    const apiUrl = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=${trimmedKey}&part=snippet,statistics,contentDetails`;
 
     const response = await fetch(apiUrl);
 
@@ -121,9 +140,32 @@ export const fetchVideoData = async (
 
     if (data.items && data.items.length > 0) {
       const video = data.items[0];
+
+      // Güvenli veri erişimi - snippet ve statistics kontrolü
+      const videoTitle = video.snippet?.title || "Bilinmeyen Başlık";
+      const channelTitle = video.snippet?.channelTitle || "Bilinmeyen Kanal";
+      const description = video.snippet?.description || "";
+      const duration = video.contentDetails?.duration || "";
+      const durationInSeconds = parseISO8601Duration(duration);
+
+      const viewCount = video.statistics?.viewCount || "0";
+      const likeCount = video.statistics?.likeCount || "0";
+      const commentCount = video.statistics?.commentCount || "0";
+
+      const views = parseInt(viewCount) || 0;
+      const likes = parseInt(likeCount) || 0;
+      const engagementRate = views > 0 ? ((likes / views) * 100).toFixed(2) : "0.00";
+
       return {
-        title: video.snippet.title,
-        channel: video.snippet.channelTitle,
+        title: videoTitle,
+        channel: channelTitle,
+        description,
+        duration,
+        durationInSeconds,
+        viewCount,
+        likeCount,
+        commentCount,
+        engagementRate
       };
     }
 
@@ -189,4 +231,38 @@ export const extractVideoId = (url: string): string | null => {
   if (liveMatch) return liveMatch[1];
 
   return null;
+};
+
+/**
+ * Downloads a YouTube video's MP4 stream to a local file
+ * Note: Real frame extraction requires a local file or a direct stream URL
+ */
+export const downloadYouTubeVideo = async (videoId: string, targetPath: string): Promise<string> => {
+  try {
+    console.log(`Video indirme başlatılıyor: ${videoId}`);
+    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+
+    // Get direct formats
+    const info = await ytdl.getInfo(videoId);
+    const format = ytdl.chooseFormat(info.formats, { quality: 'lowestvideo', filter: 'videoandaudio' });
+
+    if (!format || !format.url) {
+      throw new Error("Uygun video formatı bulunamadı.");
+    }
+
+    console.log(`İndirme URL'si alındı, dosyaya kaydediliyor: ${targetPath}`);
+
+    const downloadResumable = FileSystem.createDownloadResumable(
+      format.url,
+      targetPath
+    );
+
+    const result = await downloadResumable.downloadAsync();
+    if (!result) throw new Error("İndirme başarısız oldu.");
+
+    return result.uri;
+  } catch (error) {
+    console.error("Video indirme hatası:", error);
+    throw error;
+  }
 };

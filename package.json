@@ -73,7 +73,7 @@
     "react-native-svg": "15.12.1",
     "react-native-video": "^6.19.2",
     "react-native-web": "~0.21.2",
-    "react-native-worklets": "0.5.1",
+    "react-native-worklets": "~0.3.0",
     "react-native-ytdl": "^4.8.3",
     "superjson": "^1.13.3",
     "tailwind-merge": "^2.6.0",

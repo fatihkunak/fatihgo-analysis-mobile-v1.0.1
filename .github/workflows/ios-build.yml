@@ -1,7 +1,10 @@
 name: Build iOS App
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
-  workflow_dispatch:  # Manuel tetikleme
+  workflow_dispatch:
 
 jobs:
   build:

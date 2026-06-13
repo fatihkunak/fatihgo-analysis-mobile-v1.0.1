@@ -89,7 +89,7 @@
     "concurrently": "^9.2.1",
     "cross-env": "^7.0.3",
     "drizzle-kit": "^0.18.1",
-    "esbuild": "^0.25.12",
+    "esbuild": "^0.28.1",
     "eslint": "^9.39.2",
     "eslint-config-expo": "~10.0.0",
     "prettier": "^3.7.4",

@@ -1,0 +1,58 @@
+{
+  "cli": {
+    "version": ">= 5.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "preview": {
+      "android": {
+        "buildType": "apk",
+        "env": {
+          "npm_config_legacy_peer_deps": "true"
+        }
+      },
+      "ios": {
+        "simulator": true
+      }
+    },
+    "preview2": {
+      "android": {
+        "buildType": "apk",
+        "env": {
+          "npm_config_legacy_peer_deps": "true"
+        }
+      },
+      "ios": {
+        "simulator": true
+      }
+    },
+    "preview3": {
+      "developmentClient": true
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease",
+        "env": {
+          "npm_config_legacy_peer_deps": "true"
+        }
+      },
+      "ios": {
+        "autoIncrement": "version"
+      }
+    },
+    "production-apk": {
+      "extends": "production",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease",
+        "env": {
+          "npm_config_legacy_peer_deps": "true"
+        }
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

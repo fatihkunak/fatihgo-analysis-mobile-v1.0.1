@@ -1,0 +1,59 @@
+name: Build iOS App
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Generate iOS project files
+        run: |
+          npx expo prebuild --platform ios --clean --non-interactive
+          cd ios
+          pod install --repo-update
+
+      - name: Build iOS app with xcodebuild
+        run: |
+          cd ios
+          xcodebuild -workspace fatihgo-analysis-mobile.xcworkspace \
+            -scheme fatihgo-analysis-mobile \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath ./build/fatihgo-analysis-mobile.xcarchive \
+            archive
+
+      - name: Export IPA from archive
+        run: |
+          cd ios/build
+          xcodebuild -exportArchive \
+            -archivePath fatihgo-analysis-mobile.xcarchive \
+            -exportOptionsPlist ../exportOptions.plist \
+            -exportPath ./
+
+      - name: Upload IPA as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fatihgo-analysis-ios
+          path: ios/build/fatihgo-analysis-mobile.ipa

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Fatihgo Analysis Mobile",
     "title": "Fatihgo Analysis",
-    "slug": "fatihgo-mobile",
+    "slug": "fatihgo-analysis-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",

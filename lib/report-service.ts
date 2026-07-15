@@ -1,6 +1,6 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import { Paths, File } from 'expo-file-system';
 import { Alert } from 'react-native';
 
 export interface ReportData {
@@ -87,9 +87,10 @@ export const generateZIPReport = async (analysisData: ReportData) => {
     // 1. Önce PDF oluştur
     const pdfUri = await generatePDFReport(analysisData);
 
-    // 2. JSON verisini de ekle
-    const jsonPath = `${FileSystem.documentDirectory}analysis_data.json`;
-    await FileSystem.writeAsStringAsync(jsonPath, JSON.stringify(analysisData, null, 2));
+    // 2. JSON verisini de ekle (new FileSystem API)
+    const jsonFile = new File(Paths.document, 'analysis_data.json');
+    await jsonFile.write(JSON.stringify(analysisData, null, 2));
+    const jsonPath = jsonFile.uri;
 
     return { pdfUri, jsonPath };
   } catch (error) {

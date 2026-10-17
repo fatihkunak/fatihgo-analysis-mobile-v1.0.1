@@ -7,6 +7,8 @@ describe("insights", () => {
     expect(formatCount(999)).toBe("999");
     expect(formatCount(1500)).toBe("1.5K");
     expect(formatCount(2_000_000)).toBe("2M");
+    expect(formatCount(1_827_500_000)).toBe("1.8B");
+    expect(formatCount(19_488_400)).toBe("19.5M");
   });
 
   it("channelScore 0-100 aralığında kalır ve videosuz kanalda 0 döner", () => {

@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { Bars, Card, ScreenHeader, SplitBar, WordCloud } from "@/components/nv";
-import { forecastViews, sentiment, topKeywords } from "@/lib/insights";
+import { forecastViews, formatCount, sentiment, topKeywords } from "@/lib/insights";
 import { fetchVideoComments, fetchVideoExtras } from "@/lib/youtube-extras";
 import { bumpUsage } from "@/lib/usage";
 import { useState, useEffect, useCallback } from "react";
@@ -424,27 +424,19 @@ export default function HomeScreen() {
             <View className="flex-row flex-wrap gap-3">
               <View className="flex-1 min-w-[80px] items-center p-3 bg-background rounded-lg">
                 <Text className="text-lg font-bold text-foreground">
-                  {videoStats.views >= 1000000
-                    ? (videoStats.views / 1000000).toFixed(1) + "M"
-                    : videoStats.views >= 1000
-                    ? (videoStats.views / 1000).toFixed(1) + "K"
-                    : videoStats.views.toLocaleString()}
+                  {formatCount(videoStats.views)}
                 </Text>
                 <Text className="text-[10px] text-muted mt-1">Görüntülenme</Text>
               </View>
               <View className="flex-1 min-w-[80px] items-center p-3 bg-background rounded-lg">
                 <Text className="text-lg font-bold text-foreground">
-                  {videoStats.likes >= 1000
-                    ? (videoStats.likes / 1000).toFixed(1) + "K"
-                    : videoStats.likes.toLocaleString()}
+                  {formatCount(videoStats.likes)}
                 </Text>
                 <Text className="text-[10px] text-muted mt-1">Beğeni</Text>
               </View>
               <View className="flex-1 min-w-[80px] items-center p-3 bg-background rounded-lg">
                 <Text className="text-lg font-bold text-foreground">
-                  {videoStats.comments >= 1000
-                    ? (videoStats.comments / 1000).toFixed(1) + "K"
-                    : videoStats.comments.toLocaleString()}
+                  {formatCount(videoStats.comments)}
                 </Text>
                 <Text className="text-[10px] text-muted mt-1">Yorum</Text>
               </View>

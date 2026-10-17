@@ -45,6 +45,7 @@ export default function NicheScreen() {
   const [results, setResults] = useState<ChannelSearchResult[]>([]);
   const [youtubeApiKey, setYoutubeApiKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [scanInfo, setScanInfo] = useState<{ found: number } | null>(null);
   const params = useLocalSearchParams<{ q?: string }>();
 
   // Pano'dan gelen konu başlığını arama kutusuna yaz
@@ -65,6 +66,7 @@ export default function NicheScreen() {
 
     setIsLoading(true);
     setError(null);
+    setScanInfo(null);
 
     try {
       let results: ChannelSearchResult[] = [];
@@ -74,7 +76,8 @@ export default function NicheScreen() {
           results = await searchNicheChannels(
             query,
             youtubeApiKey,
-            parseInt(maxResults, 10) || 20
+            parseInt(maxResults, 10) || 20,
+            parseInt(ageDays, 10) || 0
           );
         } catch (apiError) {
           console.error("API Hatası:", apiError);
@@ -153,6 +156,7 @@ export default function NicheScreen() {
       tagged.sort((a, b) => b.ratio - a.ratio);
 
       setResults(tagged);
+      setScanInfo({ found: results.length });
       bumpUsage("scans");
       setIsLoading(false);
     } catch (error) {
@@ -462,7 +466,18 @@ export default function NicheScreen() {
           </View>
         )}
 
-        {results.length === 0 && !isLoading && (
+        {results.length === 0 && !isLoading && scanInfo && (
+          <View className="items-center py-8">
+            <Text className="text-foreground text-sm text-center mb-1">
+              Filtrelere uyan kanal bulunamadı
+            </Text>
+            <Text className="text-muted text-xs text-center">
+              {scanInfo.found} kanal bulundu ama kanal yaşı / abone aralığı dışında kaldı. Filtreleri gevşetip tekrar deneyin.
+            </Text>
+          </View>
+        )}
+
+        {results.length === 0 && !isLoading && !scanInfo && (
           <View className="items-center py-8">
             <Text className="text-muted text-sm">
               Tarama sonuçları burada görüntülenecek

@@ -105,7 +105,9 @@ export const fetchVideoStatistics = async (
 export const searchNicheChannels = async (
   query: string,
   apiKey: string | null,
-  maxResults: number = 20
+  maxResults: number = 20,
+  // >0 ise yalnızca son N günde yüklenen videolar aranır (yeni kanalları yakalamak için)
+  publishedAfterDays: number = 0
 ): Promise<ChannelSearchResult[]> => {
   if (!apiKey) {
     throw new Error("YouTube API anahtarı bulunamadı.");
@@ -113,8 +115,14 @@ export const searchNicheChannels = async (
 
   try {
     // First, search for videos in this niche
+    const after =
+      publishedAfterDays > 0
+        ? `&publishedAfter=${encodeURIComponent(
+            new Date(Date.now() - publishedAfterDays * 86400000).toISOString()
+          )}`
+        : "";
     const searchResponse = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?q=${encodeURIComponent(query)}&key=${apiKey}&part=snippet&type=video&maxResults=${Math.min(maxResults, 50)}&order=viewCount`
+      `https://www.googleapis.com/youtube/v3/search?q=${encodeURIComponent(query)}&key=${apiKey}&part=snippet&type=video&maxResults=${Math.min(maxResults, 50)}&order=viewCount${after}`
     );
 
     if (!searchResponse.ok) {
@@ -132,7 +140,7 @@ export const searchNicheChannels = async (
 
     // Fetch channel statistics
     const channelResponse = await fetch(
-      `https://www.googleapis.com/youtube/v3/channels?id=${channelIds.slice(0, 10).join(",")}&key=${apiKey}&part=snippet,statistics`
+      `https://www.googleapis.com/youtube/v3/channels?id=${channelIds.slice(0, 50).join(",")}&key=${apiKey}&part=snippet,statistics`
     );
 
     if (!channelResponse.ok) {

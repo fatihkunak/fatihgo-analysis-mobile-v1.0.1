@@ -13,6 +13,10 @@ const QUICK = [
   "Nişimi nasıl büyütürüm?",
 ];
 
+// Modeller Markdown döndürür; düz Text bileşeni için işaretleri temizle
+const plain = (s: string) =>
+  s.replace(/\*\*(.+?)\*\*/g, "$1").replace(/^#{1,6}\s+/gm, "").replace(/`([^`]+)`/g, "$1");
+
 export default function AssistantScreen() {
   const colors = useColors();
   const [turns, setTurns] = useState<ChatTurn[]>([]);
@@ -82,7 +86,7 @@ export default function AssistantScreen() {
                 borderColor: colors.border,
               }}
             >
-              <Text className="text-foreground text-[14px]">{item.text}</Text>
+              <Text className="text-foreground text-[14px]">{item.role === "model" ? plain(item.text) : item.text}</Text>
             </View>
           )}
           ListFooterComponent={busy ? <Text className="text-muted text-[12px] mb-2">Yazıyor…</Text> : null}

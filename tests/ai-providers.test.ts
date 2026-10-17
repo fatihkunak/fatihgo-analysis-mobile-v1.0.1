@@ -114,6 +114,10 @@ describe("istek biçimleri", () => {
     expect(parseResponse("openai", { choices: [{ message: { content: " OK " } }] })).toBe("OK");
     expect(parseResponse("anthropic", { content: [{ type: "text", text: "KEEP" }] })).toBe("KEEP");
     expect(() => parseResponse("openai", { choices: [] })).toThrowError(AiError);
+    // düşünen model küçük bütçede boş yanıt döner: net hata mesajı
+    expect(() =>
+      parseResponse("openai", { choices: [{ finish_reason: "length", message: { role: "assistant" } }] }),
+    ).toThrowError(/token sınırına/);
     expect(parseModelList({ data: [{ id: "b" }, { id: "a" }, { id: "a" }] })).toEqual(["a", "b"]);
     expect(parseModelList({ models: [{ name: "models/gemini-x" }, { name: "models/gemini-a" }] })).toEqual([
       "gemini-a",

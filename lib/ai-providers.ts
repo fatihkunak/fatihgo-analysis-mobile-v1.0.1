@@ -154,7 +154,9 @@ export const chatUrl = (c: Creds) => `${c.baseUrl}${c.info.kind === "anthropic" 
 
 export type ChatTurn = { role: "user" | "model"; text: string };
 
-export const MAX_TOKENS = 1024;
+// Gemini 3.x gibi "düşünen" modeller token bütçesini önce düşünmeye harcar; küçük sınırda yanıt boş döner.
+export const MAX_TOKENS = 2048;
+const CHECK_TOKENS = 256;
 
 export function requestBody(c: Creds, system: string, turns: ChatTurn[], maxTokens = MAX_TOKENS) {
   if (c.info.kind === "anthropic") {
@@ -178,6 +180,10 @@ export function requestBody(c: Creds, system: string, turns: ChatTurn[], maxToke
 
 export function parseResponse(kind: Kind, v: any): string {
   const text: unknown = kind === "anthropic" ? v?.content?.[0]?.text : v?.choices?.[0]?.message?.content;
+  const finish = kind === "anthropic" ? v?.stop_reason : v?.choices?.[0]?.finish_reason;
+  if ((typeof text !== "string" || !text.trim()) && (finish === "length" || finish === "max_tokens")) {
+    throw new AiError("BAD_RESPONSE", "Yanıt token sınırına takıldı (model önce düşünüyor olabilir). Sınırı artırıp tekrar deneyin.");
+  }
   if (typeof text !== "string" || !text.trim()) {
     throw new AiError("BAD_RESPONSE", "Beklenmeyen yanıt: " + JSON.stringify(v).slice(0, 200));
   }
@@ -245,6 +251,6 @@ export async function listModels(c: Creds): Promise<string[]> {
 /** Küçük gerçek istek (anahtar + model kontrolü). Süreyi ms olarak döndürür. */
 export async function check(c: Creds): Promise<number> {
   const t0 = Date.now();
-  await chat(c, "Reply with the single word OK.", [{ role: "user", text: "ping" }], 20);
+  await chat(c, "Reply with the single word OK.", [{ role: "user", text: "ping" }], CHECK_TOKENS);
   return Date.now() - t0;
 }

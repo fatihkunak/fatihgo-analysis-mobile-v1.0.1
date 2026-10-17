@@ -161,7 +161,7 @@ export default function ProfileScreen() {
           <Field value={youtubeKey} onChangeText={setYoutubeKey} secure placeholder="AIzaSy..." autoCapitalize="none" />
           <GradientButton title="YouTube Key Kaydet" onPress={() => saveKey("youtubeApiKey", youtubeKey, "YouTube API Key")} small />
           <Text className="text-muted text-[11px] mt-2">
-            Google Cloud Console > YouTube Data API v3 > API Key oluştur
+            Google Cloud Console / YouTube Data API v3 / API Key oluştur
           </Text>
         </Card>
 

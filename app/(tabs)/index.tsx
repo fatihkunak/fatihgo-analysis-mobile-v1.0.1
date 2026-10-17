@@ -12,6 +12,7 @@ import {
   channelScore,
   formatCount,
   topKeywords,
+  topPhrases,
 } from "@/lib/insights";
 import { useSession } from "@/lib/session";
 import { loadYoutubeApiKey } from "@/lib/youtube-api";
@@ -35,7 +36,13 @@ export default function DashboardScreen() {
       }
       try {
         const t = await fetchTrendingVideoTexts(key, "TR");
-        const words = topKeywords([...t.tags, ...t.titles], 8).map((w) => w.word);
+        // Önce tam etiket ifadeleri; yetmezse başlık kelimeleriyle tamamla
+        const phrases = topPhrases(t.tags, 8);
+        const filler = topKeywords(t.titles, 12)
+          .map((w) => w.word)
+          .filter((w) => w.length >= 4 && !phrases.some((p) => p.toLocaleLowerCase("tr") === w))
+          .map((w) => w.charAt(0).toLocaleUpperCase("tr") + w.slice(1));
+        const words = [...phrases, ...filler].slice(0, 8);
         if (alive && words.length) {
           setTopics(words);
           setTopicsLive(true);

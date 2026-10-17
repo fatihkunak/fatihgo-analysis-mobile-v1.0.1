@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { channelScore, forecastViews, formatCount, sentiment, topKeywords } from "../lib/insights";
+import { channelScore, forecastViews, formatCount, formatMultiple, sentiment, topKeywords, topPhrases } from "../lib/insights";
 
 describe("insights", () => {
   it("formatCount kısaltır", () => {
@@ -40,5 +40,16 @@ describe("insights", () => {
     expect(k[0]).toEqual({ word: "zeka", count: 3 });
     expect(k[1]).toEqual({ word: "yapay", count: 2 });
     expect(k.find((x) => x.word === "ve" || x.word === "the")).toBeUndefined();
+  });
+
+  it("formatMultiple oranı kat olarak yazar", () => {
+    expect(formatMultiple(48)).toBe("0.5×");
+    expect(formatMultiple(300)).toBe("3×");
+    expect(formatMultiple(3_045_168.1)).toBe("30.5K×");
+  });
+
+  it("topPhrases tam etiketleri sayar, genel/kısa olanları atar", () => {
+    const p = topPhrases(["minecraft", "Minecraft", "official", "gta", "yapay zeka", "2026", "fragman", "yapay zeka"], 3);
+    expect(p).toEqual(["Minecraft", "Yapay zeka", "Fragman"]);
   });
 });

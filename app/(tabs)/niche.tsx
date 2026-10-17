@@ -14,7 +14,7 @@ import {
 import { useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { Card, Chip, SampleBadge, ScreenHeader, Sparkline } from "@/components/nv";
-import { CATEGORIES, RISING_NICHES } from "@/lib/insights";
+import { CATEGORIES, RISING_NICHES, formatMultiple } from "@/lib/insights";
 import { bumpUsage } from "@/lib/usage";
 import { useState, useEffect, useCallback } from "react";
 import { useColors } from "@/hooks/use-colors";
@@ -225,9 +225,9 @@ export default function NicheScreen() {
               item.isOutlier ? "text-warning" : "text-foreground"
             }`}
           >
-            %{item.ratio}
+            {formatMultiple(item.ratio)}
           </Text>
-          <Text className="text-[10px] text-muted">Oran</Text>
+          <Text className="text-[10px] text-muted">Görüntülenme/Abone</Text>
         </View>
       </View>
 

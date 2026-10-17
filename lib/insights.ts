@@ -89,3 +89,28 @@ export function topKeywords(texts: string[], limit = 12): { word: string; count:
 }
 
 export const WEEK_DAYS = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"];
+
+/** Görüntülenme/abone oranını (yüzde) "x kat" olarak gösterir: 304516 -> "3K×", 48 -> "0.5×". */
+export function formatMultiple(ratioPct: number): string {
+  const x = ratioPct / 100;
+  if (x >= 1000) return formatCount(Math.round(x)) + "×";
+  return x.toFixed(1).replace(/\.0$/, "") + "×";
+}
+
+const GENERIC_TAGS = new Set(["official", "video", "shorts", "youtube", "trailer", "türkçe", "turkish", "tr", "2025", "2026", "music"]);
+
+/** Trend etiketlerinden konu ifadeleri: tam etiketler sayılır (tek tek kelimeler değil), genel olanlar atılır. */
+export function topPhrases(tags: string[], limit = 8): string[] {
+  const counts = new Map<string, { n: number; first: number }>();
+  tags.forEach((raw, i) => {
+    const t = raw.trim().toLocaleLowerCase("tr");
+    if (t.length < 4 || t.length > 30 || GENERIC_TAGS.has(t) || /^[\d\s]+$/.test(t)) return;
+    const c = counts.get(t);
+    if (c) c.n++;
+    else counts.set(t, { n: 1, first: i });
+  });
+  return [...counts.entries()]
+    .sort((a, b) => b[1].n - a[1].n || a[1].first - b[1].first)
+    .slice(0, limit)
+    .map(([t]) => t.charAt(0).toLocaleUpperCase("tr") + t.slice(1));
+}

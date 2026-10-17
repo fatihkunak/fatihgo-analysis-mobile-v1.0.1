@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { Alert, Pressable, ScrollView, Switch, Text, View } from "react-native";
 
 import { Field } from "@/components/field";
+import { AiSettings } from "@/components/ai-settings";
 import { Card, GradientButton } from "@/components/nv";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
@@ -30,7 +31,6 @@ export default function ProfileScreen() {
   const colors = useColors();
   const { profile, update, signOut } = useSession();
   const [youtubeKey, setYoutubeKey] = useState("");
-  const [geminiKey, setGeminiKey] = useState("");
   const [usage, setUsage] = useState<Usage | null>(null);
   const [channelInput, setChannelInput] = useState(profile?.channelName ?? "");
   const [msg, setMsg] = useState("");
@@ -38,10 +38,7 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      AsyncStorage.multiGet(["youtubeApiKey", "geminiApiKey"]).then(([yt, gm]) => {
-        setYoutubeKey(yt[1] ?? "");
-        setGeminiKey(gm[1] ?? "");
-      });
+      AsyncStorage.getItem("youtubeApiKey").then((v) => setYoutubeKey(v ?? ""));
       getUsage().then(setUsage);
     }, []),
   );
@@ -168,11 +165,7 @@ export default function ProfileScreen() {
           </Text>
         </Card>
 
-        <Card title="Gemini API Key (Opsiyonel)">
-          <Field value={geminiKey} onChangeText={setGeminiKey} secure placeholder="AIzaSy..." autoCapitalize="none" />
-          <GradientButton title="Gemini Key Kaydet" onPress={() => saveKey("geminiApiKey", geminiKey, "Gemini API Key")} small />
-          <Text className="text-muted text-[11px] mt-2">AI asistanı, fikir üretici ve sahne analizi için gerekir.</Text>
-        </Card>
+        <AiSettings />
 
         {msg ? (
           <View className="p-3 rounded-xl mb-3" style={{ backgroundColor: "rgba(52,211,153,0.2)" }}>

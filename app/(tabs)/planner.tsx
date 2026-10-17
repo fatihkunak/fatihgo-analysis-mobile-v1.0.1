@@ -5,8 +5,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, Touch
 import { Card, GradientButton, ScreenHeader } from "@/components/nv";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
-import { loadGeminiApiKey } from "@/lib/gemini-api";
-import { generateIdeasWithGemini, templateIdeas } from "@/lib/gemini-chat";
+import { aiStatus, generateIdeas as aiGenerateIdeas, templateIdeas } from "@/lib/ai";
 import { WEEK_DAYS } from "@/lib/insights";
 import { sharePlanPDF, type PlanData } from "@/lib/report-service";
 import { bumpUsage } from "@/lib/usage";
@@ -61,12 +60,11 @@ export default function PlannerScreen() {
     setIdeasBusy(true);
     setIdeaNote("");
     try {
-      const key = await loadGeminiApiKey();
-      if (key) {
-        setIdeas(await generateIdeasWithGemini(key, ideaNiche.trim()));
+      if ((await aiStatus()).creds) {
+        setIdeas(await aiGenerateIdeas(ideaNiche.trim()));
       } else {
         setIdeas(templateIdeas(ideaNiche.trim()));
-        setIdeaNote("Gemini anahtarı yok; şablon fikirler gösteriliyor.");
+        setIdeaNote("AI sağlayıcı ayarlı değil (Profil > Yapay Zeka); şablon fikirler gösteriliyor.");
       }
     } catch (e) {
       setIdeas(templateIdeas(ideaNiche.trim()));

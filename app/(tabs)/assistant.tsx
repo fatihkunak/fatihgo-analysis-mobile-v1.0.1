@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from "react-native";
 
 import { Chip, ScreenHeader } from "@/components/nv";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
-import { chatWithGemini, type ChatTurn } from "@/lib/gemini-chat";
-import { loadGeminiApiKey } from "@/lib/gemini-api";
+import { ASSISTANT_SYSTEM, aiChat, aiStatus, type ChatTurn } from "@/lib/ai";
+import { bumpUsage } from "@/lib/usage";
 
 const QUICK = [
   "Bu video için başlık önerir misin?",
@@ -18,12 +18,7 @@ export default function AssistantScreen() {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const [apiKey, setApiKey] = useState<string | null>(null);
   const listRef = useRef<FlatList<ChatTurn>>(null);
-
-  useEffect(() => {
-    loadGeminiApiKey().then(setApiKey);
-  }, []);
 
   const send = async (msg: string) => {
     const content = msg.trim();
@@ -31,17 +26,19 @@ export default function AssistantScreen() {
     const next: ChatTurn[] = [...turns, { role: "user", text: content }];
     setTurns(next);
     setText("");
-    if (!apiKey) {
+    const st = await aiStatus();
+    if (!st.creds) {
       setTurns([
         ...next,
-        { role: "model", text: "AI asistanı için Gemini API anahtarı gerekiyor. Profil > Ayarlar'dan ekleyin." },
+        { role: "model", text: `${st.reason} Profil > Yapay Zeka bölümünden sağlayıcı seçip API anahtarı girin.` },
       ]);
       return;
     }
     setBusy(true);
     try {
-      const reply = await chatWithGemini(apiKey, next);
+      const reply = await aiChat(ASSISTANT_SYSTEM, next);
       setTurns([...next, { role: "model", text: reply }]);
+      bumpUsage("chats");
     } catch (e) {
       setTurns([...next, { role: "model", text: "Hata: " + (e as Error).message }]);
     } finally {

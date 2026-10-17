@@ -23,10 +23,8 @@ import {
   fetchVideoStatistics,
   extractVideoId,
 } from "@/lib/youtube-api";
-import {
-  loadGeminiApiKey,
-  analyzeScenesWithGemini,
-} from "@/lib/gemini-api";
+import { aiStatus, analyzeScenes } from "@/lib/ai";
+import { useFocusEffect } from "expo-router";
 import { sharePDF, shareZIPReport, type ReportData } from "@/lib/report-service";
 import { LineChart } from "react-native-chart-kit";
 
@@ -62,24 +60,26 @@ export default function HomeScreen() {
   const [mood, setMood] = useState<{ positive: number; neutral: number; negative: number; n: number } | null>(null);
   const [keywords, setKeywords] = useState<{ word: string; count: number }[]>([]);
   const [youtubeApiKey, setYoutubeApiKey] = useState<string | null>(null);
-  const [geminiApiKey, setGeminiApiKey] = useState<string | null>(null);
+  const [aiLabel, setAiLabel] = useState<string | null>(null);
 
   // Load API keys on mount
   useEffect(() => {
     const loadKeys = async () => {
       try {
-        const [ytKey, gmKey] = await Promise.all([
-          loadYoutubeApiKey(),
-          loadGeminiApiKey(),
-        ]);
-        setYoutubeApiKey(ytKey);
-        setGeminiApiKey(gmKey);
+        setYoutubeApiKey(await loadYoutubeApiKey());
       } catch (error) {
         console.error("API key'ler yüklenemedi:", error);
       }
     };
     loadKeys();
   }, []);
+
+  // AI sağlayıcı ayarı Profil ekranından değişebilir; sekmeye dönünce tazele
+  useFocusEffect(
+    useCallback(() => {
+      aiStatus().then((st) => setAiLabel(st.creds ? st.label : null));
+    }, []),
+  );
 
   const handleAnalyze = useCallback(async () => {
     if (!url.trim()) {
@@ -154,22 +154,17 @@ export default function HomeScreen() {
       }
       bumpUsage("analyses");
 
-      // Try Gemini AI analysis if key is available
+      // Seçili AI sağlayıcı ayarlıysa sahne analizini ona yaptır
       let scenes: AnalysisResult[] | null = null;
-      if (geminiApiKey) {
+      if ((await aiStatus()).creds) {
         try {
-          const aiScenes = await analyzeScenesWithGemini(
-            geminiApiKey,
-            videoTitle,
-            "",
-            "0:00"
-          );
+          const aiScenes = await analyzeScenes(videoTitle, "", "0:00");
           scenes = aiScenes.map((s) => ({
             ...s,
             intensity: Math.min(10, Math.max(1, s.scene * 1.5 + 2)),
           }));
         } catch (geminiError) {
-          console.error("Gemini hatası, mock kullanılıyor:", geminiError);
+          console.error("AI hatası, örnek veri kullanılıyor:", geminiError);
         }
       }
 
@@ -226,7 +221,7 @@ export default function HomeScreen() {
       Alert.alert("Hata", "Hata: " + (error as Error).message);
       setIsLoading(false);
     }
-  }, [url, youtubeApiKey, geminiApiKey]);
+  }, [url, youtubeApiKey]);
 
   const handleExportPDF = useCallback(async () => {
     if (!videoInfo || results.length === 0) return;
@@ -363,13 +358,13 @@ export default function HomeScreen() {
           <View
             className="flex-1 p-2 rounded-lg"
             style={{
-              backgroundColor: geminiApiKey ? "rgba(52,211,153,0.16)" : "rgba(251,191,36,0.16)",
+              backgroundColor: aiLabel ? "rgba(52,211,153,0.16)" : "rgba(251,191,36,0.16)",
               borderWidth: 1,
-              borderColor: geminiApiKey ? "rgba(52,211,153,0.5)" : "rgba(251,191,36,0.5)",
+              borderColor: aiLabel ? "rgba(52,211,153,0.5)" : "rgba(251,191,36,0.5)",
             }}
           >
             <Text className="text-xs font-semibold text-foreground text-center">
-              {geminiApiKey ? "✅ Gemini AI" : "⚠️ Gemini Key Opsiyonel"}
+              {aiLabel ? `✅ ${aiLabel}` : "⚠️ AI Sağlayıcı Opsiyonel"}
             </Text>
           </View>
         </View>

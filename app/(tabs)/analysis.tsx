@@ -351,24 +351,24 @@ export default function HomeScreen() {
           <View
             className="flex-1 p-2 rounded-lg"
             style={{
-              backgroundColor: youtubeApiKey
-                ? colors.success
-                : colors.warning,
+              backgroundColor: youtubeApiKey ? "rgba(52,211,153,0.16)" : "rgba(251,191,36,0.16)",
+              borderWidth: 1,
+              borderColor: youtubeApiKey ? "rgba(52,211,153,0.5)" : "rgba(251,191,36,0.5)",
             }}
           >
-            <Text className="text-xs font-semibold text-background text-center">
+            <Text className="text-xs font-semibold text-foreground text-center">
               {youtubeApiKey ? "✅ YouTube API" : "⚠️ YouTube Key Gerekli"}
             </Text>
           </View>
           <View
             className="flex-1 p-2 rounded-lg"
             style={{
-              backgroundColor: geminiApiKey
-                ? colors.success
-                : colors.warning,
+              backgroundColor: geminiApiKey ? "rgba(52,211,153,0.16)" : "rgba(251,191,36,0.16)",
+              borderWidth: 1,
+              borderColor: geminiApiKey ? "rgba(52,211,153,0.5)" : "rgba(251,191,36,0.5)",
             }}
           >
-            <Text className="text-xs font-semibold text-background text-center">
+            <Text className="text-xs font-semibold text-foreground text-center">
               {geminiApiKey ? "✅ Gemini AI" : "⚠️ Gemini Key Opsiyonel"}
             </Text>
           </View>

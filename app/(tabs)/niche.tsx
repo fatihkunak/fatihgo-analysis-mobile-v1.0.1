@@ -277,12 +277,12 @@ export default function NicheScreen() {
         <View
           className="mb-4 p-2 rounded-lg"
           style={{
-            backgroundColor: youtubeApiKey
-              ? colors.success
-              : colors.warning,
+            backgroundColor: youtubeApiKey ? "rgba(52,211,153,0.16)" : "rgba(251,191,36,0.16)",
+              borderWidth: 1,
+              borderColor: youtubeApiKey ? "rgba(52,211,153,0.5)" : "rgba(251,191,36,0.5)",
           }}
         >
-          <Text className="text-xs font-semibold text-background text-center">
+          <Text className="text-xs font-semibold text-foreground text-center">
             {youtubeApiKey
               ? "✅ YouTube API Bağlı - Gerçek veriler"
               : "⚠️ YouTube API Anahtarı Gerekli - Mock veriler kullanılıyor"}

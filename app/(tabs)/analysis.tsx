@@ -554,7 +554,7 @@ export default function HomeScreen() {
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
                   <Text className="text-white font-semibold text-sm">
-                    📦 ZIP + JSON
+                    📦 PDF + JSON
                   </Text>
                 )}
               </TouchableOpacity>

@@ -9,16 +9,24 @@ import { useSession } from "@/lib/session";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { signIn } = useSession();
+  const { signIn, mode } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const submit = async () => {
     if (!isEmail(email)) return setError("Geçerli bir e-posta girin.");
-    if (password.length < 6) return setError("Şifre en az 6 karakter olmalı.");
+    if (!password) return setError("Şifre girin.");
     setError("");
-    await signIn({ email: email.trim().toLowerCase() });
+    setBusy(true);
+    try {
+      await signIn(email.trim().toLowerCase(), password);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -38,13 +46,15 @@ export default function LoginScreen() {
           />
           <Field label="Şifre" value={password} onChangeText={setPassword} secure placeholder="••••••" />
           {error ? <Text className="text-error text-[12px] mb-2">{error}</Text> : null}
-          <GradientButton title="Giriş Yap" onPress={submit} style={{ marginTop: 6 }} />
+          <GradientButton title="Giriş Yap" onPress={submit} loading={busy} style={{ marginTop: 6 }} />
           <Pressable onPress={() => router.push("/(auth)/register")} style={{ alignItems: "center", marginTop: 20 }}>
             <Text className="text-info font-semibold">Yeni Kayıt Ol</Text>
           </Pressable>
           <Text className="text-muted text-center text-[12px] mt-3">Hesabınız yok mu?</Text>
           <Text className="text-muted text-center text-[10px] mt-6">
-            Hesap bu cihazda yerel olarak saklanır; sunucuya gönderilmez.
+            {mode === "server"
+              ? "Hesabın Nichevo sunucusunda saklanır."
+              : "Sunucu ayarlı değil: hesap yalnızca bu cihazda tutulur ve şifre doğrulanmaz."}
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

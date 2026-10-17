@@ -9,19 +9,27 @@ import { useSession } from "@/lib/session";
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { signIn } = useSession();
+  const { signUp, mode } = useSession();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [channel, setChannel] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   const submit = async () => {
     if (!name.trim()) return setError("Ad soyad girin.");
     if (!isEmail(email)) return setError("Geçerli bir e-posta girin.");
-    if (password.length < 6) return setError("Şifre en az 6 karakter olmalı.");
+    if (password.length < 8) return setError("Şifre en az 8 karakter olmalı.");
     setError("");
-    await signIn({ email: email.trim().toLowerCase(), name: name.trim(), channelName: channel.trim() });
+    setBusy(true);
+    try {
+      await signUp({ email: email.trim().toLowerCase(), password, name: name.trim(), channelName: channel.trim() });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -40,8 +48,10 @@ export default function RegisterScreen() {
           <Field label="Kanal Adı (Opsiyonel)" value={channel} onChangeText={setChannel} placeholder="@kanaliniz" autoCapitalize="none" />
           <Field label="Şifre" value={password} onChangeText={setPassword} secure />
           {error ? <Text className="text-error text-[12px] mb-2">{error}</Text> : null}
-          <GradientButton title="Kayıt Ol" onPress={submit} style={{ marginTop: 6 }} />
-          <Text className="text-muted text-center text-[12px] mt-4">Kanalınızı hemen optimize edin.</Text>
+          <GradientButton title="Kayıt Ol" onPress={submit} loading={busy} style={{ marginTop: 6 }} />
+          <Text className="text-muted text-center text-[12px] mt-4">
+            {mode === "server" ? "Kanalınızı hemen optimize edin." : "Sunucu ayarlı değil: hesap yalnızca bu cihazda tutulur."}
+          </Text>
           <Pressable onPress={() => router.back()} style={{ alignItems: "center", marginTop: 20 }}>
             <Text className="text-info font-semibold">Zaten hesabım var</Text>
           </Pressable>

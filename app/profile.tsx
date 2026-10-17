@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { Alert, Pressable, ScrollView, Switch, Text, View } from "react-native";
 
 import { Field } from "@/components/field";
+import { AccountCard } from "@/components/account-card";
 import { AiSettings } from "@/components/ai-settings";
 import { Card, GradientButton } from "@/components/nv";
 import { ScreenContainer } from "@/components/screen-container";
@@ -190,6 +191,8 @@ export default function ProfileScreen() {
         </Card>
 
         <AiSettings />
+
+        <AccountCard />
 
 
         <Pressable

@@ -1,0 +1,27 @@
+{
+  "name": "nichevo-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Nichevo yerel hesap sunucusu: Fastify + Postgres (Docker)",
+  "scripts": {
+    "migrate": "tsx --env-file=.env src/migrate.ts",
+    "dev": "tsx watch --env-file=.env src/server.ts",
+    "start": "tsx --env-file=.env src/server.ts",
+    "check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "fastify": "^5.0.0",
+    "jose": "^6.1.0",
+    "pg": "^8.13.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

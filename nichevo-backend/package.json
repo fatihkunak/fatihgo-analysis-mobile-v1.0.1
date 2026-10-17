@@ -6,6 +6,7 @@
   "description": "Nichevo yerel hesap sunucusu: Fastify + Postgres (Docker)",
   "scripts": {
     "migrate": "tsx --env-file=.env src/migrate.ts",
+    "reset-password": "tsx --env-file=.env src/reset-password.ts",
     "dev": "tsx watch --env-file=.env src/server.ts",
     "start": "tsx --env-file=.env src/server.ts",
     "check": "tsc --noEmit",

@@ -40,10 +40,25 @@ Portlar bilerek `5545`/`3102`: `5544` (pmbot-postgres), `5432` (migren-research-
 
 ## Çalıştırma
 ```bash
-npm start          # http://127.0.0.1:3102
+npm start          # http://127.0.0.1:3102 (elle, geliştirme)
 npm test           # gerçek Postgres'e karşı (ayrı nichevo_test veritabanı)
 npm run check      # tsc
 ```
+
+### Açılışta otomatik başlatma (Görev Zamanlayıcı `NichevoApi`)
+```powershell
+powershell -File deploy\install-task.ps1     # bir kez; yönetici gerekmez
+Start-ScheduledTask -TaskName NichevoApi      # hemen başlat
+```
+Gramiq'teki düzen: `wscript` + `run-hidden.vbs` (pencere yok) + S4U (oturum açmadan). `start-backend.cmd` Docker/Postgres henüz hazır değilse 15 sn bekleyip yeniden dener; günlük `logs/backend.log`.
+**Durdurmak** (yalnız kendi sürecini): `deploy\stop.flag` dosyasını oluştur, sonra `Get-NetTCPConnection -LocalPort 3102` → `OwningProcess` sürecini durdur. Yeniden açmak için bayrağı sil ve görevi başlat. (Süreci bayraksız öldürürsen döngü 15 sn sonra yeniden başlatır; bu yeniden başlatmak için de işe yarar.)
+Not: yeniden başlatma (reboot) ile açılış henüz denenmedi.
+
+### Şifre sıfırlama (e-posta altyapısı yok)
+```bash
+npm run reset-password -- kisi@mail.com   # rastgele geçici şifreyi bir kez yazdırır, tüm oturumları kapatır
+```
+Kullanıcı girişten sonra Profil > Şifre'den değiştirir.
 
 ## Telefon bağlantısı
 **Geliştirme (USB):** `adb reverse tcp:3102 tcp:3102`, uygulamayı şu ortamla derle:

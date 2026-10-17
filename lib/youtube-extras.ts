@@ -86,3 +86,19 @@ export const fetchVideoComments = async (
   const data = await response.json();
   return (data.items ?? []).map((i: any) => i.snippet.topLevelComment.snippet.textDisplay as string);
 };
+
+// Anahtarı küçük bir gerçek istekle doğrular (1 kota birimi).
+export const verifyYoutubeKey = async (apiKey: string): Promise<{ ok: boolean; msg: string }> => {
+  try {
+    const r = await fetch(`${BASE}/videos?chart=mostPopular&maxResults=1&part=id&key=${encodeURIComponent(apiKey)}`);
+    if (r.ok) return { ok: true, msg: "Anahtar doğrulandı" };
+    let reason = `HTTP ${r.status}`;
+    try {
+      const j = await r.json();
+      reason = (j.error?.message as string | undefined)?.replace(apiKey, "***").slice(0, 160) ?? reason;
+    } catch {}
+    return { ok: false, msg: reason };
+  } catch (e) {
+    return { ok: false, msg: "Bağlantı hatası: " + (e as Error).message };
+  }
+};

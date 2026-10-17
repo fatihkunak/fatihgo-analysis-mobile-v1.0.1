@@ -11,7 +11,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useSession } from "@/lib/session";
 import { getUsage, type Usage } from "@/lib/usage";
 import { loadYoutubeApiKey } from "@/lib/youtube-api";
-import { fetchChannelInfo } from "@/lib/youtube-extras";
+import { fetchChannelInfo, verifyYoutubeKey } from "@/lib/youtube-extras";
 
 function Row({ label, value, onPress }: { label: string; value?: string; onPress?: () => void }) {
   const colors = useColors();
@@ -33,6 +33,8 @@ export default function ProfileScreen() {
   const [youtubeKey, setYoutubeKey] = useState("");
   const [usage, setUsage] = useState<Usage | null>(null);
   const [channelInput, setChannelInput] = useState(profile?.channelName ?? "");
+  const [ytStatus, setYtStatus] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [ytBusy, setYtBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -48,11 +50,26 @@ export default function ProfileScreen() {
     setTimeout(() => setMsg(""), 3000);
   };
 
-  const saveKey = async (storageKey: string, value: string, label: string) => {
-    if (!value.trim()) return Alert.alert("Hata", `${label} boş olamaz.`);
-    await AsyncStorage.setItem(storageKey, value.trim());
-    flash(`✅ ${label} kaydedildi`);
+  const saveYoutubeKey = async () => {
+    const key = youtubeKey.trim();
+    if (!key) {
+      setYtStatus({ ok: false, msg: "YouTube API anahtarı boş olamaz." });
+      return;
+    }
+    setYtBusy(true);
+    setYtStatus(null);
+    try {
+      await AsyncStorage.setItem("youtubeApiKey", key);
+      setYoutubeKey(key);
+      const v = await verifyYoutubeKey(key);
+      setYtStatus(v.ok ? { ok: true, msg: "Kaydedildi · " + v.msg } : { ok: false, msg: "Kaydedildi ama doğrulanamadı: " + v.msg });
+    } catch (e) {
+      setYtStatus({ ok: false, msg: "Kaydedilemedi: " + (e as Error).message });
+    } finally {
+      setYtBusy(false);
+    }
   };
+
 
   const saveChannel = async () => {
     setBusy(true);
@@ -124,6 +141,7 @@ export default function ProfileScreen() {
           />
           <GradientButton title="Kanalı Kaydet" onPress={saveChannel} loading={busy} small />
           {profile.channelId ? <Text className="text-success text-[11px] mt-2">Doğrulandı · {profile.channelId}</Text> : null}
+          {msg ? <Text style={{ color: msg.startsWith("✅") ? colors.success : colors.muted, fontSize: 12, marginTop: 8 }}>{msg}</Text> : null}
         </Card>
 
         <Card title="Paket Planı">
@@ -159,7 +177,13 @@ export default function ProfileScreen() {
 
         <Card title="YouTube Data API v3">
           <Field value={youtubeKey} onChangeText={setYoutubeKey} secure placeholder="AIzaSy..." autoCapitalize="none" />
-          <GradientButton title="YouTube Key Kaydet" onPress={() => saveKey("youtubeApiKey", youtubeKey, "YouTube API Key")} small />
+          <GradientButton title="YouTube Key Kaydet" onPress={saveYoutubeKey} loading={ytBusy} small />
+          {ytStatus ? (
+            <Text style={{ color: ytStatus.ok ? colors.success : colors.error, fontSize: 12, marginTop: 8 }}>
+              {ytStatus.ok ? "✓ " : "✗ "}
+              {ytStatus.msg}
+            </Text>
+          ) : null}
           <Text className="text-muted text-[11px] mt-2">
             Google Cloud Console / YouTube Data API v3 / API Key oluştur
           </Text>
@@ -167,11 +191,6 @@ export default function ProfileScreen() {
 
         <AiSettings />
 
-        {msg ? (
-          <View className="p-3 rounded-xl mb-3" style={{ backgroundColor: "rgba(52,211,153,0.2)" }}>
-            <Text className="text-foreground text-center text-[13px]">{msg}</Text>
-          </View>
-        ) : null}
 
         <Pressable
           onPress={logout}

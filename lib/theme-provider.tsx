@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Appearance, View, useColorScheme as useSystemColorScheme } from "react-native";
+import { Appearance, View } from "react-native";
 import { colorScheme as nativewindColorScheme, vars } from "nativewind";
 
 import { SchemeColors, type ColorScheme } from "@/constants/theme";
@@ -12,7 +12,7 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const systemScheme = useSystemColorScheme() ?? "light";
+  const systemScheme: ColorScheme = "dark";
   const [colorScheme, setColorSchemeState] = useState<ColorScheme>(systemScheme);
 
   const applyScheme = useCallback((scheme: ColorScheme) => {
@@ -42,6 +42,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     () =>
       vars({
         "color-primary": SchemeColors[colorScheme].primary,
+        "color-accent": SchemeColors[colorScheme].accent,
+        "color-info": SchemeColors[colorScheme].info,
         "color-background": SchemeColors[colorScheme].background,
         "color-surface": SchemeColors[colorScheme].surface,
         "color-foreground": SchemeColors[colorScheme].foreground,
@@ -61,7 +63,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }),
     [colorScheme, setColorScheme],
   );
-  console.log(value, themeVariables)
 
   return (
     <ThemeContext.Provider value={value}>

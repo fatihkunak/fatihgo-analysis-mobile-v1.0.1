@@ -66,7 +66,11 @@ Kullanıcı girişten sonra Profil > Şifre'den değiştirir.
 `NICHEVO_ALLOW_CLEARTEXT=1` (prebuild) ve `EXPO_PUBLIC_API_URL=http://127.0.0.1:3102` (gradle/bundle).
 `EXPO_PUBLIC_API_URL` paketleme anında gömülür; verilmezse uygulama **yerel moda** düşer (şifre doğrulanmaz, hesap yalnızca cihazda).
 
-**Gerçek kullanım (https):** `https://nichevo-api.scenefxai.app` → ayrı Cloudflare tüneli `nichevo-api` (id `300d41d2…`, yapılandırma `~/.cloudflared/nichevo-api.yml`, kimlik dosyası git dışı) → `127.0.0.1:3102`. `sound-platform-dev` tüneline dokunmaz (Gramiq/Stedora ile aynı düzen). Yayın sürümü **cleartext bayrağı olmadan** ve `EXPO_PUBLIC_API_URL=https://nichevo-api.scenefxai.app` ile derlenir.
+**Gerçek kullanım (https):** ayrı Cloudflare tüneli `nichevo-api` (id `300d41d2…`, yapılandırma `~/.cloudflared/nichevo-api.yml`, kimlik dosyası git dışı) → `127.0.0.1:3102`. İki adres aynı tünele bağlı:
+- **`https://nichevo-api.fatihgo.com`** ← uygulamaya gömülen ana adres (Gramiq/Stedora ile aynı düzen; DNS kaydı Cloudflare API ile eklendi)
+- `https://nichevo-api.scenefxai.app` ← yedek/alternatif adres (DNS `cloudflared route dns` ile)
+
+`sound-platform-dev`, `gramiq-api`, `stedora-api` tünellerine dokunmaz. Yayın sürümü **cleartext bayrağı olmadan** ve `EXPO_PUBLIC_API_URL=https://nichevo-api.fatihgo.com` ile derlenir. **Gradle önbelleği ortam değişkenini izlemez:** adres değişince `:app:createBundleReleaseJsAndAssets --rerun` ver ve APK'daki paketi `grep -a "https://nichevo-api" assets/index.android.bundle` ile doğrula.
 Tüneli sıfırdan kurarsan: `cloudflared tunnel create nichevo-api`, sonra DNS için **`--config nichevo-api.yml` vererek** `cloudflared --config <yml> tunnel route dns -f <TÜNEL-ID> nichevo-api.scenefxai.app` (config vermezsen `~/.cloudflared/config.yml`'deki varsayılan tünel seçilir ve CNAME YANLIŞ tünele gider; günlükteki `tunnelID=` değerini kontrol et).
 Not: hesaplar herkese açık kayıt alıyor (e-posta doğrulaması yok); hız sınırı var ama istenmeyen kayıt gelirse `/v1/auth/register`'ı kapatmayı düşün.
 

@@ -1,10 +1,20 @@
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Tabs } from "expo-router";
+import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HapticTab } from "@/components/haptic-tab";
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Platform } from "react-native";
 import { useColors } from "@/hooks/use-colors";
+
+type IconName = React.ComponentProps<typeof MaterialIcons>["name"];
+
+const TABS: { name: string; title: string; icon: IconName }[] = [
+  { name: "index", title: "Pano", icon: "dashboard" },
+  { name: "niche", title: "Keşif", icon: "trending-up" },
+  { name: "planner", title: "Planlama", icon: "event-note" },
+  { name: "analysis", title: "Analiz", icon: "insights" },
+  { name: "assistant", title: "Asistan", icon: "auto-awesome" },
+];
 
 export default function TabLayout() {
   const colors = useColors();
@@ -15,47 +25,31 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.tint,
+        tabBarActiveTintColor: colors.info,
+        tabBarInactiveTintColor: colors.muted,
         headerShown: false,
         tabBarButton: HapticTab,
+        tabBarLabelStyle: { fontSize: 10 },
         tabBarStyle: {
           paddingTop: 8,
           paddingBottom: bottomPadding,
           height: tabBarHeight,
-          backgroundColor: colors.background,
+          backgroundColor: "#12062A",
           borderTopColor: colors.border,
           borderTopWidth: 0.5,
         },
       }}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Analiz",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="niche"
-        options={{
-          title: "Niş Tarama",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="magnifyingglass" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="planner"
-        options={{
-          title: "Planlayıcı",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="pencil.and.list.clipboard" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: "Ayarlar",
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="gearshape.fill" color={color} />,
-        }}
-      />
+      {TABS.map((t) => (
+        <Tabs.Screen
+          key={t.name}
+          name={t.name}
+          options={{
+            title: t.title,
+            tabBarIcon: ({ color }) => <MaterialIcons name={t.icon} size={24} color={color} />,
+          }}
+        />
+      ))}
     </Tabs>
   );
 }

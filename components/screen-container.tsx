@@ -1,3 +1,4 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { View, type ViewProps } from "react-native";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 
@@ -47,12 +48,20 @@ export function ScreenContainer({
       )}
       {...props}
     >
+      <LinearGradient
+        colors={["#0D0620", "#1A0A38", "#2A0E45"]}
+        start={{ x: 0.2, y: 0 }}
+        end={{ x: 0.8, y: 1 }}
+        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+      />
       <SafeAreaView
         edges={edges}
         className={cn("flex-1", safeAreaClassName)}
         style={style}
       >
-        <View className={cn("flex-1", className)}>{children}</View>
+        <View className={cn("flex-1", className)} style={{ width: "100%", maxWidth: 560, alignSelf: "center" }}>
+          {children}
+        </View>
       </SafeAreaView>
     </View>
   );

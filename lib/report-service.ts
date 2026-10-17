@@ -136,3 +136,72 @@ export const shareZIPReport = async (analysisData: ReportData) => {
     Alert.alert('Hata', 'Dışa aktarma başarısız');
   }
 };
+
+// Generate and share a PDF for the Video Planner
+export interface PlanData {
+  niche: string;
+  topic: string;
+  phases: Array<{
+    phase: string;
+    time: string;
+    desc: string;
+    script: string;
+  }>;
+}
+
+export const sharePlanPDF = async (planData: PlanData) => {
+  try {
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Video Planı</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 40px; }
+          h1 { color: #6C63FF; }
+          .header { text-align: center; margin-bottom: 30px; }
+          .phase-card { border: 1px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; page-break-inside: avoid; border-left: 4px solid #6C63FF; }
+          .phase-name { font-size: 18px; font-weight: bold; color: #333; }
+          .time { color: #6C63FF; font-weight: bold; float: right; }
+          .script-box { background: #f9f9f9; padding: 10px; border-radius: 6px; font-style: italic; margin-top: 10px; }
+          .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #999; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>🎬 Fatihgo Analysis - Video Planı</h1>
+          <p><strong>Niş:</strong> ${planData.niche}</p>
+          <p><strong>Konu:</strong> ${planData.topic}</p>
+          <p>Oluşturulma: ${new Date().toLocaleString('tr-TR')}</p>
+        </div>
+
+        ${planData.phases.map(p => `
+          <div class="phase-card">
+            <div class="phase-name">${p.phase} <span class="time">⏱️ ${p.time}</span></div>
+            <p style="color: #666;">${p.desc}</p>
+            <div class="script-box">&ldquo;${p.script}&rdquo;</div>
+          </div>
+        `).join('')}
+
+        <div class="footer">
+          <p>Fatihgo Analysis - www.fatihgo.com | info@fatihgo.com</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const { uri } = await Print.printToFileAsync({ html: htmlContent });
+
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: 'Video Planını Paylaş',
+        UTI: 'com.adobe.pdf'
+      });
+    }
+  } catch (error) {
+    console.log('Plan PDF hatası:', error);
+    Alert.alert('Hata', 'PDF oluşturulamadı');
+  }
+};

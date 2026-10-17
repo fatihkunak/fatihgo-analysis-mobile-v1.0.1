@@ -1,178 +1,125 @@
-import { ScrollView, Text, View, TextInput, TouchableOpacity, ActivityIndicator, FlatList, Alert } from "react-native";
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import { ScrollView, Text, View } from "react-native";
+
+import { Card, Chip, Gauge, Heatmap, SampleBadge, ScreenHeader } from "@/components/nv";
 import { ScreenContainer } from "@/components/screen-container";
-import { useState, useEffect } from "react";
-import { useColors } from "@/hooks/use-colors";
-import { loadYoutubeApiKey, fetchVideoData, extractVideoId } from "@/lib/youtube-api";
+import {
+  HEAT_COLS,
+  HEAT_DATA,
+  HEAT_ROWS,
+  SAMPLE_TOPICS,
+  channelScore,
+  formatCount,
+  topKeywords,
+  topPhrases,
+} from "@/lib/insights";
+import { useSession } from "@/lib/session";
+import { loadYoutubeApiKey } from "@/lib/youtube-api";
+import { fetchChannelInfo, fetchTrendingVideoTexts, type ChannelInfo } from "@/lib/youtube-extras";
 
-interface AnalysisResult {
-  scene: number;
-  duration: string;
-  description: string;
-  script: string;
-}
+export default function DashboardScreen() {
+  const router = useRouter();
+  const { profile } = useSession();
+  const [topics, setTopics] = useState<string[]>(SAMPLE_TOPICS);
+  const [topicsLive, setTopicsLive] = useState(false);
+  const [channel, setChannel] = useState<ChannelInfo | null>(null);
+  const [note, setNote] = useState("");
 
-export default function HomeScreen() {
-  const colors = useColors();
-  const [url, setUrl] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [results, setResults] = useState<AnalysisResult[]>([]);
-  const [videoInfo, setVideoInfo] = useState<{ id: string; title: string; channel: string } | null>(null);
-  const [youtubeApiKey, setYoutubeApiKey] = useState<string | null>(null);
-
-  // Load YouTube API key from AsyncStorage on component mount
   useEffect(() => {
-    const loadApiKey = async () => {
-      try {
-        const key = await loadYoutubeApiKey();
-        setYoutubeApiKey(key);
-      } catch (error) {
-        console.error("API key yüklenemedi:", error);
-      }
-    };
-    loadApiKey();
-  }, []);
-
-  const handleAnalyze = async () => {
-    if (!url.trim()) {
-      Alert.alert("Hata", "Lütfen bir YouTube URL'si girin.");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Extract video ID from URL
-      const videoId = extractVideoId(url);
-      if (!videoId) {
-        Alert.alert("Hata", "Geçersiz YouTube URL'si. Desteklenen formatlar:\n- youtube.com/watch?v=...\n- youtu.be/...\n- youtube.com/live/...\n- youtube.com/embed/...");
-        setIsLoading(false);
+    let alive = true;
+    (async () => {
+      const key = await loadYoutubeApiKey();
+      if (!key) {
+        setNote("Canlı veri için Profil > Ayarlar'dan YouTube API anahtarı ekleyin.");
         return;
       }
-
-      // Fetch video data from YouTube API
-      let videoData = null;
       try {
-        videoData = await fetchVideoData(videoId, youtubeApiKey);
-      } catch (apiError) {
-        console.error("YouTube API hatası:", apiError);
-        // If API fails, use mock data
-        Alert.alert(
-          "API Uyarısı",
-          "YouTube API'ye bağlanılamadı. Mock veriler kullanılıyor.\n\nLütfen Ayarlar sayfasında YouTube API anahtarınızı kontrol edin.",
-          [{ text: "Tamam" }]
-        );
+        const t = await fetchTrendingVideoTexts(key, "TR");
+        // Önce tam etiket ifadeleri; yetmezse başlık kelimeleriyle tamamla
+        const phrases = topPhrases(t.tags, 8);
+        const filler = topKeywords(t.titles, 12)
+          .map((w) => w.word)
+          .filter((w) => w.length >= 4 && !phrases.some((p) => p.toLocaleLowerCase("tr") === w))
+          .map((w) => w.charAt(0).toLocaleUpperCase("tr") + w.slice(1));
+        const words = [...phrases, ...filler].slice(0, 8);
+        if (alive && words.length) {
+          setTopics(words);
+          setTopicsLive(true);
+        }
+      } catch (e) {
+        if (alive) setNote("Trendler alınamadı: " + (e as Error).message);
       }
+      if (profile?.channelId) {
+        try {
+          const c = await fetchChannelInfo(profile.channelId, key);
+          if (alive) setChannel(c);
+        } catch {}
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [profile?.channelId]);
 
-      // Set video info (real or mock)
-      setVideoInfo({
-        id: videoId,
-        title: videoData?.title || "Video Başlığı (Mock)",
-        channel: videoData?.channel || "Kanal Adı (Mock)",
-      });
-
-      // Generate mock analysis results
-      setResults([
-        { scene: 1, duration: "0-5s", description: "Giriş ve kanca", script: "Merhaba izleyiciler!" },
-        { scene: 2, duration: "5-20s", description: "Sorun tanımı", script: "Bugün size şunu göstereceğim..." },
-        { scene: 3, duration: "20-40s", description: "Çözüm sunumu", script: "Çözüm çok basit aslında..." },
-        { scene: 4, duration: "40-80s", description: "Detaylı açıklama", script: "Adım adım yapıyoruz..." },
-        { scene: 5, duration: "80-100s", description: "Momentum artışı", script: "İşte en heyecan verici kısım!" },
-        { scene: 6, duration: "100s+", description: "Kapanış ve CTA", script: "Yorumlarda bana yazın!" },
-      ]);
-
-      setIsLoading(false);
-    } catch (error) {
-      Alert.alert("Hata", "Hata: " + (error as Error).message);
-      setIsLoading(false);
-    }
-  };
-
-  const renderResult = ({ item }: { item: AnalysisResult }) => (
-    <View className="mb-3 p-3 bg-surface rounded-lg border border-border">
-      <View className="flex-row justify-between mb-1">
-        <Text className="font-semibold text-foreground">Sahne {item.scene}</Text>
-        <Text className="text-xs text-muted">{item.duration}</Text>
-      </View>
-      <Text className="text-sm text-muted mb-1">{item.description}</Text>
-      <Text className="text-xs text-foreground italic">&quot;{item.script}&quot;</Text>
-    </View>
-  );
+  const score = channel ? channelScore(channel) : null;
 
   return (
-    <ScreenContainer className="p-4">
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <Text className="text-2xl font-bold text-foreground mb-4">📹 Video Analizi</Text>
+    <ScreenContainer className="px-4 pt-2">
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+        <ScreenHeader title="Pano" />
 
-        {/* API Status */}
-        <View className="mb-4 p-3 rounded-lg" style={{ backgroundColor: youtubeApiKey ? colors.success : colors.warning }}>
-          <Text className="text-xs font-semibold text-background">
-            {youtubeApiKey ? "✅ YouTube API Bağlı" : "⚠️ YouTube API Anahtarı Gerekli"}
-          </Text>
-        </View>
-
-        {/* URL Input */}
-        <View className="mb-4">
-          <Text className="text-sm text-muted mb-2">YouTube URL</Text>
-          <TextInput
-            placeholder="https://youtube.com/watch?v=... veya youtu.be/..."
-            value={url}
-            onChangeText={setUrl}
-            className="p-3 bg-surface border border-border rounded-lg text-foreground mb-3"
-            placeholderTextColor={colors.muted}
-          />
-          <Text className="text-xs text-muted">Desteklenen: watch, youtu.be, live, embed</Text>
-        </View>
-
-        {/* Analyze Button */}
-        <TouchableOpacity
-          onPress={handleAnalyze}
-          disabled={isLoading}
-          className={`p-4 rounded-lg mb-4 ${isLoading ? "opacity-50" : ""}`}
-          style={{ backgroundColor: colors.primary }}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={colors.background} />
-          ) : (
-            <Text className="text-center text-background font-semibold">🚀 Analiz Et</Text>
-          )}
-        </TouchableOpacity>
-
-        {/* Video Info */}
-        {videoInfo && (
-          <View className="mb-4 p-4 bg-surface rounded-lg border border-border">
-            <Text className="text-base font-semibold text-foreground mb-2">{videoInfo.title}</Text>
-            <Text className="text-sm text-muted">📺 {videoInfo.channel}</Text>
-            <Text className="text-xs text-muted mt-1">ID: {videoInfo.id}</Text>
+        <Card title="Öne Çıkan Konular" hint={topicsLive ? "TR · canlı" : undefined}>
+          <View className="flex-row flex-wrap">
+            {topics.map((t) => (
+              <Chip key={t} label={t} onPress={() => router.push({ pathname: "/niche", params: { q: t } })} />
+            ))}
           </View>
-        )}
-
-        {/* Results */}
-        {results.length > 0 && (
-          <View>
-            <Text className="text-lg font-semibold text-foreground mb-3">📊 Analiz Sonuçları</Text>
-            <FlatList
-              data={results}
-              renderItem={renderResult}
-              keyExtractor={(item) => item.scene.toString()}
-              scrollEnabled={false}
-            />
-
-            {/* Export Buttons */}
-            <View className="flex-row gap-2 mt-4">
-              <TouchableOpacity className="flex-1 p-3 rounded-lg" style={{ backgroundColor: colors.primary }}>
-                <Text className="text-center text-background font-semibold text-sm">📄 PDF</Text>
-              </TouchableOpacity>
-              <TouchableOpacity className="flex-1 p-3 rounded-lg" style={{ backgroundColor: colors.primary }}>
-                <Text className="text-center text-background font-semibold text-sm">📦 ZIP</Text>
-              </TouchableOpacity>
+          {!topicsLive ? (
+            <View className="flex-row items-center mt-1">
+              <SampleBadge />
             </View>
-          </View>
-        )}
+          ) : null}
+        </Card>
 
-        {results.length === 0 && !isLoading && (
-          <View className="items-center py-8">
-            <Text className="text-muted text-sm">Analiz sonuçları burada görüntülenecek</Text>
+        <View className="flex-row">
+          <Card title="Kanal Skoru" style={{ flex: 1, marginRight: 6 }}>
+            <View className="items-center">
+              {score !== null ? (
+                <>
+                  <Gauge value={score} />
+                  <Text className="text-muted text-[11px] mt-2 text-center" numberOfLines={1}>
+                    {channel!.title}
+                  </Text>
+                  <Text className="text-muted text-[10px]">
+                    {formatCount(channel!.subs)} abone · {formatCount(channel!.videos)} video
+                  </Text>
+                </>
+              ) : (
+                <Text className="text-muted text-[12px] text-center py-4">
+                  {profile?.channelId
+                    ? "Skor hesaplanıyor / API anahtarı gerekli"
+                    : "Skor için kanalınızı Profil'den bağlayın"}
+                </Text>
+              )}
+            </View>
+          </Card>
+          <Card title="Büyüme İpucu" style={{ flex: 1, marginLeft: 6 }}>
+            <Text className="text-foreground text-[12px]">
+              Isı haritasında mavi hücreler az kalabalık, magenta hücreler yoğun rekabet demektir. Az kalabalık
+              format + yükselen niş = fırsat.
+            </Text>
+          </Card>
+        </View>
+
+        <Card title="Rekabet Isı Haritası" hint="niş × format">
+          <Heatmap rows={HEAT_ROWS} cols={HEAT_COLS} data={HEAT_DATA} />
+          <View className="flex-row items-center mt-2">
+            <SampleBadge />
           </View>
-        )}
+        </Card>
+
+        {note ? <Text className="text-muted text-[11px] text-center mt-1">{note}</Text> : null}
       </ScrollView>
     </ScreenContainer>
   );

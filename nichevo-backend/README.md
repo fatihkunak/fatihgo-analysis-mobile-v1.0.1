@@ -47,8 +47,9 @@ npm run check      # tsc
 
 ### Açılışta otomatik başlatma (Görev Zamanlayıcı `NichevoApi`)
 ```powershell
-powershell -File deploy\install-task.ps1     # bir kez; yönetici gerekmez
+powershell -File deploy\install-tasks.ps1    # bir kez; NichevoApi + NichevoApiTunnel; yönetici gerekmez
 Start-ScheduledTask -TaskName NichevoApi      # hemen başlat
+Start-ScheduledTask -TaskName NichevoApiTunnel
 ```
 Gramiq'teki düzen: `wscript` + `run-hidden.vbs` (pencere yok) + S4U (oturum açmadan). `start-backend.cmd` Docker/Postgres henüz hazır değilse 15 sn bekleyip yeniden dener; günlük `logs/backend.log`.
 **Durdurmak** (yalnız kendi sürecini): `deploy\stop.flag` dosyasını oluştur, sonra `Get-NetTCPConnection -LocalPort 3102` → `OwningProcess` sürecini durdur. Yeniden açmak için bayrağı sil ve görevi başlat. (Süreci bayraksız öldürürsen döngü 15 sn sonra yeniden başlatır; bu yeniden başlatmak için de işe yarar.)
@@ -65,7 +66,9 @@ Kullanıcı girişten sonra Profil > Şifre'den değiştirir.
 `NICHEVO_ALLOW_CLEARTEXT=1` (prebuild) ve `EXPO_PUBLIC_API_URL=http://127.0.0.1:3102` (gradle/bundle).
 `EXPO_PUBLIC_API_URL` paketleme anında gömülür; verilmezse uygulama **yerel moda** düşer (şifre doğrulanmaz, hesap yalnızca cihazda).
 
-**Gerçek kullanım:** Cloudflare Tunnel ile https adresi (yayın sürümü cleartext olmadan, https ile derlenmeli).
+**Gerçek kullanım (https):** `https://nichevo-api.scenefxai.app` → ayrı Cloudflare tüneli `nichevo-api` (id `300d41d2…`, yapılandırma `~/.cloudflared/nichevo-api.yml`, kimlik dosyası git dışı) → `127.0.0.1:3102`. `sound-platform-dev` tüneline dokunmaz (Gramiq/Stedora ile aynı düzen). Yayın sürümü **cleartext bayrağı olmadan** ve `EXPO_PUBLIC_API_URL=https://nichevo-api.scenefxai.app` ile derlenir.
+Tüneli sıfırdan kurarsan: `cloudflared tunnel create nichevo-api`, sonra DNS için **`--config nichevo-api.yml` vererek** `cloudflared --config <yml> tunnel route dns -f <TÜNEL-ID> nichevo-api.scenefxai.app` (config vermezsen `~/.cloudflared/config.yml`'deki varsayılan tünel seçilir ve CNAME YANLIŞ tünele gider; günlükteki `tunnelID=` değerini kontrol et).
+Not: hesaplar herkese açık kayıt alıyor (e-posta doğrulaması yok); hız sınırı var ama istenmeyen kayıt gelirse `/v1/auth/register`'ı kapatmayı düşün.
 
 ## Tuzaklar (scenefx'ten ders)
 - **GRANT unutma:** çalışma rolü `nichevo_app` süper kullanıcı değil; yeni tablo eklerken `002_grants.sql`'deki `DEFAULT PRIVILEGES` kapsar, yine de testte kontrol et. Test, uygulamayı bu rolle çalıştırır.

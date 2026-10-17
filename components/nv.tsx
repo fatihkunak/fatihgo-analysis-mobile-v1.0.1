@@ -137,7 +137,7 @@ export function Logo({ size = 96 }: { size?: number }) {
   return (
     <Image
       source={require("@/assets/images/logo.png")}
-      style={{ width: size, height: size, borderRadius: size * 0.22 }}
+      style={{ width: size, height: size }}
       resizeMode="cover"
     />
   );

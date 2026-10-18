@@ -116,6 +116,23 @@ export function buildApp({ pool, jwtSecret, logger = false, now = Date.now }: Ap
     return fail(reply, 500, "INTERNAL", "Sunucu hatası");
   });
 
+  // Web sürümü (nichevo.fatihgo.com) farklı kökenden çağırır; kimlik doğrulama Bearer jetonuyla olduğundan
+  // çerez yok, yine de yalnızca bilinen kökenlere izin verilir. Native istemci Origin göndermez.
+  const WEB_ORIGINS = new Set(["https://nichevo.fatihgo.com", "http://localhost:8081", "http://localhost:19006"]);
+  app.addHook("onRequest", async (req, reply) => {
+    const origin = req.headers.origin;
+    if (!origin || !WEB_ORIGINS.has(origin)) return;
+    reply.header("Access-Control-Allow-Origin", origin).header("Vary", "Origin");
+    if (req.method === "OPTIONS") {
+      return reply
+        .header("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS")
+        .header("Access-Control-Allow-Headers", "Content-Type,Authorization")
+        .header("Access-Control-Max-Age", "600")
+        .code(204)
+        .send();
+    }
+  });
+
   async function issueSession(user: UserRow, req: FastifyRequest, familyId?: string) {
     const refreshToken = newRefreshToken();
     await pool.query(
@@ -143,6 +160,11 @@ export function buildApp({ pool, jwtSecret, logger = false, now = Date.now }: Ap
     }
     req.user = user;
   }
+
+  app.get("/", async (_req, reply) => {
+    reply.type("text/html; charset=utf-8");
+    return "<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><title>Nichevo API</title><body style='font-family:system-ui;background:#14101f;color:#e8e4f5;display:grid;place-items:center;height:100vh;margin:0'><div style='text-align:center'><h1>Nichevo API</h1><p>Sunucu çalışıyor. Bu adres uygulama içindir.</p></div>";
+  });
 
   app.get("/healthz", async () => {
     await pool.query("SELECT 1");

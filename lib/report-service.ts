@@ -41,7 +41,7 @@ export const generatePDFReport = async (analysisData: ReportData): Promise<strin
     </head>
     <body>
       <div class="header">
-        <h1>🎬 Fatihgo Analysis - Video Raporu</h1>
+        <h1>🎬 Nichevo - Video Raporu</h1>
         <p>Oluşturulma: ${new Date().toLocaleString('tr-TR')}</p>
       </div>
 
@@ -67,7 +67,7 @@ export const generatePDFReport = async (analysisData: ReportData): Promise<strin
       `).join('') || '<p>Sahne bilgisi bulunamadı.</p>'}
 
       <div class="footer">
-        <p>Fatihgo Analysis - www.fatihgo.com | info@fatihgo.com</p>
+        <p>Nichevo - www.fatihgo.com | info@fatihgo.com</p>
       </div>
     </body>
     </html>
@@ -170,7 +170,7 @@ export const sharePlanPDF = async (planData: PlanData) => {
       </head>
       <body>
         <div class="header">
-          <h1>🎬 Fatihgo Analysis - Video Planı</h1>
+          <h1>🎬 Nichevo - Video Planı</h1>
           <p><strong>Niş:</strong> ${planData.niche}</p>
           <p><strong>Konu:</strong> ${planData.topic}</p>
           <p>Oluşturulma: ${new Date().toLocaleString('tr-TR')}</p>
@@ -185,7 +185,7 @@ export const sharePlanPDF = async (planData: PlanData) => {
         `).join('')}
 
         <div class="footer">
-          <p>Fatihgo Analysis - www.fatihgo.com | info@fatihgo.com</p>
+          <p>Nichevo - www.fatihgo.com | info@fatihgo.com</p>
         </div>
       </body>
       </html>

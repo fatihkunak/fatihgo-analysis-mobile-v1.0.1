@@ -172,3 +172,24 @@ describe("veritabanı", () => {
     expect(res.json()).toMatchObject({ ok: true, db: true });
   });
 });
+
+describe("CORS (web sürümü)", () => {
+  const web = "https://nichevo.fatihgo.com";
+
+  it("bilinen kökene izin verir ve ön kontrole 204 döner", async () => {
+    const pre = await app.inject({ method: "OPTIONS", url: "/v1/auth/login", headers: { origin: web, "access-control-request-method": "POST" } });
+    expect(pre.statusCode).toBe(204);
+    expect(pre.headers["access-control-allow-origin"]).toBe(web);
+    expect(pre.headers["access-control-allow-headers"]).toContain("Authorization");
+    const res = await app.inject({ method: "GET", url: "/healthz", headers: { origin: web } });
+    expect(res.headers["access-control-allow-origin"]).toBe(web);
+  });
+
+  it("bilinmeyen kökene başlık vermez; Origin'siz (native) istek etkilenmez", async () => {
+    const evil = await app.inject({ method: "GET", url: "/healthz", headers: { origin: "https://evil.example" } });
+    expect(evil.statusCode).toBe(200);
+    expect(evil.headers["access-control-allow-origin"]).toBeUndefined();
+    const native = await app.inject({ method: "GET", url: "/healthz" });
+    expect(native.headers["access-control-allow-origin"]).toBeUndefined();
+  });
+});

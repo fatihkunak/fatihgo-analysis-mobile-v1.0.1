@@ -15,7 +15,7 @@ export function Watermark() {
           style={{ width: 24, height: 24 }}
         />
         <Text className="text-xs font-semibold text-foreground">
-          Fatihgo Analysis
+          Nichevo
         </Text>
       </View>
       <Text className="text-xs text-muted">www.fatihgo.com</Text>

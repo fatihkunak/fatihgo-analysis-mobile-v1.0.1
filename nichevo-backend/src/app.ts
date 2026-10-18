@@ -2,6 +2,13 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest }
 import type pg from "pg";
 import { z } from "zod";
 
+import {
+  ALLOWED_REDIRECTS,
+  exchangeCodeWithGoogle,
+  googleAuthUrl,
+  googleRedirectUri,
+  type GoogleConfig,
+} from "./google.js";
 import { dummyVerify, hashPassword, verifyPassword } from "./password.js";
 import {
   ACCESS_TTL_SEC,
@@ -9,13 +16,17 @@ import {
   hashRefreshToken,
   newRefreshToken,
   signAccessToken,
+  signPurposeToken,
   verifyAccessToken,
+  verifyPurposeToken,
 } from "./tokens.js";
 
 interface UserRow {
   id: string;
   email: string;
-  password_hash: string;
+  /** Google ile açılan hesaplarda null */
+  password_hash: string | null;
+  google_sub: string | null;
   name: string;
   channel_name: string;
   channel_id: string;
@@ -42,6 +53,7 @@ const publicUser = (u: UserRow) => ({
   language: u.language,
   notifications: u.notifications,
   onboarded: u.onboarded,
+  hasPassword: u.password_hash !== null,
 });
 
 const email = z.string().trim().toLowerCase().email().max(320);
@@ -67,7 +79,9 @@ const patchBody = z
   .partial()
   .strict(); // plan gibi sunucuya ait alanlar istemciden değiştirilemez
 const changePasswordBody = z.object({ currentPassword: z.string().min(1).max(200), newPassword });
-const deleteBody = z.object({ password: z.string().min(1).max(200) });
+// Şifreli hesap şifresini, Google hesabı (şifresi yok) açık onayı gönderir
+const deleteBody = z.object({ password: z.string().min(1).max(200).optional(), confirm: z.literal(true).optional() });
+const exchangeBody = z.object({ code: z.string().min(20).max(2000) });
 
 /** Basit bellek içi kayan pencere sınırlayıcı (tek süreçli sunucu için yeterli). */
 class RateLimiter {
@@ -92,9 +106,11 @@ export interface AppOptions {
   jwtSecret: string;
   logger?: boolean;
   now?: () => number;
+  /** Tanımlı değilse Google uç noktaları 503 döner ve istemci düğmeyi göstermez */
+  google?: GoogleConfig;
 }
 
-export function buildApp({ pool, jwtSecret, logger = false, now = Date.now }: AppOptions): FastifyInstance {
+export function buildApp({ pool, jwtSecret, logger = false, now = Date.now, google }: AppOptions): FastifyInstance {
   const app = Fastify({
     logger: logger ? { level: "info", redact: ["req.headers.authorization"] } : false,
     bodyLimit: 16 * 1024,
@@ -195,7 +211,8 @@ export function buildApp({ pool, jwtSecret, logger = false, now = Date.now }: Ap
       return fail(reply, 429, "RATE_LIMIT", "Çok fazla deneme, 15 dakika sonra tekrar deneyin");
     }
     const user = (await pool.query<UserRow>("SELECT * FROM users WHERE email = $1", [b.email])).rows[0];
-    const ok = user ? await verifyPassword(b.password, user.password_hash) : (await dummyVerify(b.password), false);
+    // Google hesabında şifre yoktur; yine de aynı maliyeti öder ve aynı hatayı verir
+    const ok = user?.password_hash ? await verifyPassword(b.password, user.password_hash) : (await dummyVerify(b.password), false);
     if (!user || !ok) return fail(reply, 401, "BAD_CREDENTIALS", "E-posta veya şifre hatalı");
     limiter.clear(key);
     return issueSession(user, req);
@@ -236,6 +253,83 @@ export function buildApp({ pool, jwtSecret, logger = false, now = Date.now }: Ap
     return reply.code(204).send();
   });
 
+  // ---- Google ile giriş (sunucu tarafı kod akışı) ----
+  // start → Google → callback → istemciye tek kullanımlık kod → exchange → normal oturum
+  const usedCodes = new Map<string, number>(); // jti → bitiş (ms); tek kullanımı sağlar
+  const redirectWith = (base: string, params: Record<string, string>) => {
+    const u = new URL(base);
+    for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
+    return u.toString();
+  };
+
+  app.get("/v1/auth/providers", async () => ({ google: Boolean(google) }));
+
+  app.get("/v1/auth/google/start", async (req, reply) => {
+    if (!google) return fail(reply, 503, "GOOGLE_OFF", "Google girişi bu sunucuda kapalı");
+    if (limiter.hit(`gstart:${ipOf(req)}`, 30, 15 * 60_000)) return fail(reply, 429, "RATE_LIMIT", "Çok fazla deneme");
+    const { redirect } = z.object({ redirect: z.string().max(300) }).parse(req.query);
+    if (!ALLOWED_REDIRECTS.has(redirect)) return fail(reply, 400, "BAD_REDIRECT", "Geçersiz dönüş adresi");
+    const nonce = newRefreshToken();
+    const state = await signPurposeToken(jwtSecret, "gstate", { redirect, nonce }, 600);
+    return reply.redirect(googleAuthUrl(google, state, nonce));
+  });
+
+  app.get("/v1/auth/google/callback", async (req, reply) => {
+    if (!google) return fail(reply, 503, "GOOGLE_OFF", "Google girişi bu sunucuda kapalı");
+    const q = z.object({ code: z.string().optional(), state: z.string().max(2000), error: z.string().optional() }).parse(req.query);
+    const st = await verifyPurposeToken(jwtSecret, "gstate", q.state);
+    if (!st || typeof st.redirect !== "string" || typeof st.nonce !== "string" || !ALLOWED_REDIRECTS.has(st.redirect)) {
+      return reply.code(400).type("text/plain; charset=utf-8").send("Giriş isteği geçersiz ya da süresi dolmuş. Uygulamadan tekrar deneyin.");
+    }
+    const back = (params: Record<string, string>) => reply.redirect(redirectWith(st.redirect as string, params));
+    if (q.error || !q.code) return back({ error: "GOOGLE_DENIED" });
+
+    let profile;
+    try {
+      const exchange = google.exchange ?? ((c: string, r: string, n: string) => exchangeCodeWithGoogle(google, c, r, n));
+      profile = await exchange(q.code, googleRedirectUri(google), st.nonce);
+    } catch (e) {
+      app.log.warn({ err: (e as Error).message }, "google kod değişimi başarısız");
+      return back({ error: "GOOGLE_FAILED" });
+    }
+    if (!profile.emailVerified) return back({ error: "EMAIL_UNVERIFIED" });
+
+    let user = (await pool.query<UserRow>("SELECT * FROM users WHERE google_sub = $1", [profile.sub])).rows[0];
+    if (!user) {
+      // Aynı e-postayla şifreli hesap varsa ÇOK dikkat: kayıtta e-posta doğrulaması yok, başkası bu adresle
+      // önceden hesap açmış olabilir. Sessizce bağlamak ele geçirmeye yol açar, bu yüzden reddedilir.
+      const existing = (await pool.query<UserRow>("SELECT id FROM users WHERE email = $1", [profile.email])).rows[0];
+      if (existing) return back({ error: "EMAIL_EXISTS" });
+      try {
+        user = (
+          await pool.query<UserRow>(
+            `INSERT INTO users (email, password_hash, google_sub, name) VALUES ($1, NULL, $2, $3) RETURNING *`,
+            [profile.email, profile.sub, profile.name.slice(0, 100)],
+          )
+        ).rows[0];
+      } catch (e) {
+        if ((e as { code?: string }).code === "23505") return back({ error: "EMAIL_EXISTS" });
+        throw e;
+      }
+    }
+    return back({ code: await signPurposeToken(jwtSecret, "gcode", {}, 120, user!.id) });
+  });
+
+  app.post("/v1/auth/google/exchange", async (req, reply) => {
+    if (limiter.hit(`gex:${ipOf(req)}`, 30, 15 * 60_000)) return fail(reply, 429, "RATE_LIMIT", "Çok fazla deneme");
+    const { code } = exchangeBody.parse(req.body);
+    const claims = await verifyPurposeToken(jwtSecret, "gcode", code);
+    if (!claims || typeof claims.sub !== "string" || typeof claims.jti !== "string" || typeof claims.exp !== "number") {
+      return fail(reply, 401, "UNAUTHORIZED", "Giriş kodu geçersiz ya da süresi dolmuş");
+    }
+    for (const [j, exp] of usedCodes) if (exp < Date.now()) usedCodes.delete(j);
+    if (usedCodes.has(claims.jti)) return fail(reply, 401, "UNAUTHORIZED", "Giriş kodu daha önce kullanılmış");
+    usedCodes.set(claims.jti, claims.exp * 1000);
+    const user = await getUserById(claims.sub);
+    if (!user) return fail(reply, 401, "UNAUTHORIZED", "Oturum geçersiz");
+    return issueSession(user, req);
+  });
+
   app.get("/v1/me", { preHandler: authenticate }, async (req) => ({ user: publicUser(req.user!) }));
 
   app.patch("/v1/me", { preHandler: authenticate }, async (req) => {
@@ -260,6 +354,7 @@ export function buildApp({ pool, jwtSecret, logger = false, now = Date.now }: Ap
 
   app.post("/v1/auth/change-password", { preHandler: authenticate }, async (req, reply) => {
     const b = changePasswordBody.parse(req.body);
+    if (!req.user!.password_hash) return fail(reply, 409, "NO_PASSWORD", "Bu hesap Google ile açıldı; şifresi yok");
     if (!(await verifyPassword(b.currentPassword, req.user!.password_hash))) {
       return fail(reply, 403, "BAD_CREDENTIALS", "Mevcut şifre hatalı");
     }
@@ -275,8 +370,12 @@ export function buildApp({ pool, jwtSecret, logger = false, now = Date.now }: Ap
 
   app.delete("/v1/me", { preHandler: authenticate }, async (req, reply) => {
     const b = deleteBody.parse(req.body);
-    if (!(await verifyPassword(b.password, req.user!.password_hash))) {
-      return fail(reply, 403, "BAD_CREDENTIALS", "Şifre hatalı");
+    if (req.user!.password_hash) {
+      if (!b.password || !(await verifyPassword(b.password, req.user!.password_hash))) {
+        return fail(reply, 403, "BAD_CREDENTIALS", "Şifre hatalı");
+      }
+    } else if (b.confirm !== true) {
+      return fail(reply, 403, "CONFIRM_REQUIRED", "Hesabı silmek için onay gerekir");
     }
     await pool.query("DELETE FROM users WHERE id = $1", [req.user!.id]); // refresh_tokens ON DELETE CASCADE
     return reply.code(204).send();

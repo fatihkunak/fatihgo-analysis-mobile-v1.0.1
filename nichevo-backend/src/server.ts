@@ -5,7 +5,7 @@ import { loadConfig } from "./config.js";
 
 const cfg = loadConfig();
 const pool = new pg.Pool({ connectionString: cfg.databaseUrl, max: 10 });
-const app = buildApp({ pool, jwtSecret: cfg.jwtSecret, logger: true });
+const app = buildApp({ pool, jwtSecret: cfg.jwtSecret, logger: true, google: cfg.google });
 
 const shutdown = async () => {
   await app.close();

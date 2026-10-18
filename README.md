@@ -1,25 +1,26 @@
 # Nichevo
 
-YouTube içerik üreticileri için niş keşfi, video analizi ve içerik planlama uygulaması. Android uygulaması ve web sürümü aynı kod tabanından çıkar.
+YouTube içerik üreticileri için niş keşfi, rekabet haritası, video analizi ve içerik planlama uygulaması. Android uygulaması ve web sürümü aynı kod tabanından çıkar.
 
 > Eski adı "Fatihgo Analysis Mobile". Repo adı ve belgeler Nichevo'ya taşındı.
 
 - **Web:** https://nichevo.fatihgo.com
+- **Tanıtım sayfası:** https://fatihgo.com/uygulamalar/nichevo
 - **Hesap sunucusu:** `https://nichevo-api.fatihgo.com` (`GET /healthz`)
 - **Geliştirici:** [fatihgo.com](https://fatihgo.com)
 - **Lisans:** MIT
 
 ## Ekran görüntüleri
 
-Görüntüler web sürümünden, hesapsız yerel modda alındı. YouTube anahtarı girilmediği için Pano ve Keşif'te "Örnek veri" etiketli örnek içerik görünür; anahtarı ekleyince canlı veri gelir.
+Görüntüler Android uygulamasından alındı; Pano ve Keşif'teki veriler gerçek YouTube verisidir (Türkiye, 18 Ekim 2026).
 
-| Karşılama | Pano | Keşif |
+| Pano | Keşif | Planlama |
 |:---:|:---:|:---:|
-| <img src="docs/screenshots/01-karsilama.png" width="260" alt="Karşılama"> | <img src="docs/screenshots/02-pano.png" width="260" alt="Pano"> | <img src="docs/screenshots/03-kesif.png" width="260" alt="Keşif"> |
+| <img src="docs/screenshots/02-pano.png" width="260" alt="Pano: öne çıkan konular, kanal skoru, rekabet ısı haritası"> | <img src="docs/screenshots/03-kesif.png" width="260" alt="Keşif: yükselen nişler ve filtreler"> | <img src="docs/screenshots/04-planlama.png" width="260" alt="Planlama: yapay zekâ ile çekim planı"> |
 
-| Planlama | Analiz | Asistan |
-|:---:|:---:|:---:|
-| <img src="docs/screenshots/04-planlama.png" width="260" alt="Planlama"> | <img src="docs/screenshots/05-analiz.png" width="260" alt="Analiz"> | <img src="docs/screenshots/06-asistan.png" width="260" alt="Asistan"> |
+| Video analizi | Tahmin ve yorumlar | Asistan | Giriş |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/screenshots/05-analiz.png" width="190" alt="Video analizi"> | <img src="docs/screenshots/06-analiz-tahmin.png" width="190" alt="Görüntülenme tahmini, yorum analizi, anahtar kelimeler"> | <img src="docs/screenshots/07-asistan.png" width="190" alt="Yapay zekâ asistanı"> | <img src="docs/screenshots/01-giris.png" width="190" alt="Giriş: e-posta ya da Google"> |
 
 ## Ne yapar
 
@@ -27,28 +28,29 @@ Uygulamanın beş sekmesi var:
 
 | Sekme | İş |
 |---|---|
-| **Pano** | Öne çıkan konular, kanal skoru, büyüme ipucu ve niş × format rekabet ısı haritası |
-| **Keşif** | YouTube kanallarında niş taraması: abone sayısı ve kanal yaşı filtresi, aykırı değer (outlier) tespiti, tablo görünümü |
-| **Planlama** | Niş ve konu seçerek video planı çıkarır |
-| **Analiz** | YouTube bağlantısından video analizi: görüntülenme, beğeni, etkileşim, yoğunluk ve içerik grafikleri |
+| **Pano** | Türkiye'de öne çıkan konular, kanal skoru (0-100), büyüme ipucu ve **niş × format rekabet ısı haritası** |
+| **Keşif** | **Yükselen nişler** ve kanal taraması: arama terimi, kanal yaşı, abone aralığı, aykırı değer eşiği; her kanalda abone, izlenme, yaş ve izlenme/abone oranı |
+| **Planlama** | Haftalık takvim, fikir oluşturucu ve nişini ile konunu verince 6 aşamalı çekim planı (PDF olarak paylaşılır) |
+| **Analiz** | YouTube bağlantısından video analizi: izlenme, beğeni, etkileşim, görüntülenme tahmini, yorumların duygu dağılımı, anahtar kelime performansı, sahne yoğunluğu |
 | **Asistan** | Seçtiğin yapay zekâ sağlayıcısıyla sohbet |
 
-Ayrıca hesap (kayıt, giriş, profil, şifre değiştirme, hesap silme) ve Türkçe/İngilizce dil seçimi vardır.
+Hesap: e-posta ve şifreyle ya da **Google ile giriş**; tarayıcıda ve telefonda aynı hesap. Arayüz şu an yalnızca Türkçe (profildeki dil tercihi kaydedilir, çeviri yok).
+
+### Canlı veri nasıl hesaplanıyor
+
+İkisi de YouTube Data API `search.list` sonuçlarındaki yaklaşık video sayısından (`pageInfo.totalResults`) çıkar. Kodu `lib/market.ts`, testleri `tests/market.test.ts`.
+
+- **Rekabet ısı haritası:** teknoloji, oyun, eğitim ve yaşam nişlerinin kısa (4 dk altı), uzun (20 dk üstü), biten canlı yayın, podcast ve vlog formatlarında **son 30 günde yüklenen video sayısı**. Değerler logaritmik ölçekte 0-1'e indirgenir; mavi az, magenta yoğun rekabettir.
+- **Yükselen nişler:** altı izlenen nişin son dört haftadaki **haftalık yükleme hacmi** ve ilk-son hafta değişimi. Bu yükleme hacminin artışıdır, izleyici talebinin artışı demek değildir.
+- **Kota:** 44 arama = yaklaşık **4.400 kota birimi**; sonuçlar 24 saat önbelleğe alınır. Kota dolarsa son hesaplanan veri gösterilir. Anahtar yoksa ekranlar "Örnek veri" etiketiyle örnek içerik gösterir, sahte kanal üretmez.
 
 ## Nasıl kullanılır
 
-1. **Hesap aç ve giriş yap.** Kayıt ekranında ad, e-posta, isteğe bağlı kanal adı ve şifre girersin (şifre en az 8 karakter).
-2. **Kanalını bağla (isteğe bağlı).** Karşılama ekranında `@kullaniciadi` ya da kanal bağlantısını yazarsın; "Şimdilik atla" ile geçip sonradan **Profil ve Ayarlar → Kanal Bilgileri**'nden de ekleyebilirsin.
-3. **YouTube anahtarını ekle.** **Profil ve Ayarlar → YouTube Data API v3** altına kendi anahtarını girersin. Anahtar yokken Pano ve Keşif örnek veriyle çalışır, Analiz çalışmaz.
-4. **Yapay zekâ sağlayıcını seç (isteğe bağlı).** Asistan ve yapay zekâ önerileri için sağlayıcıyı, modeli ve anahtarını ayarlardan seçersin. Anahtarsız kullanılabilen tek seçenek yerel ağdaki Ollama / LM Studio'dur.
-5. **Kullan.**
-   - *Pano:* günün öne çıkan konularına ve rekabet ısı haritasına bak.
-   - *Keşif:* kategori seç, arama terimi, kanal yaşı ve abone aralığı ver; yükselen nişleri ve aykırı değerleri gör.
-   - *Planlama:* haftalık takvime içerik ekle, fikir oluşturucudan öneri al, niş ve konudan video planı çıkar.
-   - *Analiz:* bir YouTube bağlantısı yapıştır (`watch`, `youtu.be`, `live`, `embed`), görüntülenme, beğeni ve etkileşimi gör.
-   - *Asistan:* "Bu video için başlık önerir misin?" gibi hızlı sorulardan başla ya da kendi sorunu yaz.
-
-**Profil ve Ayarlar**'dan dili (Türkçe / İngilizce), bildirimleri ve paketini yönetir, çıkış yaparsın.
+1. **Hesap aç ve giriş yap.** E-posta, ad ve şifre (en az 8 karakter) ya da "Google ile devam et".
+2. **Kanalını bağla (isteğe bağlı).** Karşılama ekranında `@kullaniciadi` ya da kanal bağlantısı; "Şimdilik atla" ile geçip sonradan **Profil ve Ayarlar → Kanal Bilgileri**'nden eklenebilir.
+3. **YouTube anahtarını ekle.** **Profil ve Ayarlar → YouTube Data API v3** altına kendi anahtarını gir. Anahtar yokken Pano ve Keşif örnek veriyle, Analiz hiç çalışmaz.
+4. **Yapay zekâ sağlayıcını seç (isteğe bağlı).** Asistan, fikir oluşturucu ve çekim planı için sağlayıcıyı, modeli ve anahtarını ayarlardan seç. Sağlayıcı yoksa fikirler ve plan kalıp olarak gelir ve ekran bunu söyler.
+5. **Kullan:** Pano'da konulara ve ısı haritasına bak, Keşif'te yükselen bir nişe dokunup taramayı başlat, Planlama'da çekim planı çıkar, Analiz'e bir video bağlantısı yapıştır.
 
 ## Yapay zekâ sağlayıcıları
 
@@ -59,21 +61,20 @@ Sağlayıcıyı ve modeli ayarlardan sen seçersin; anahtarlar sunucuya gönderi
 - **Yerel ağ:** Ollama, LM Studio (anahtarsız, ağdaki bilgisayarda)
 - **Diğer:** EVREN LLM, Alibaba Qwen (Model Studio), OpenAI uyumlu özel adres
 
-Video ve kanal verisi için kendi **YouTube Data API v3** anahtarını girersin.
-
-> Web sürümünde istekler doğrudan tarayıcıdan gider; bazı sağlayıcılar tarayıcı kaynaklı (CORS) çağrıları engelleyebilir ve `http://` yerel adreslere HTTPS sayfadan erişilemez. Bu kısıtlar web sürümünde sağlayıcı bazında denenmedi; sorunsuz çalışması gereken yer Android uygulamasıdır.
+> Web sürümünde istekler doğrudan tarayıcıdan gider; bazı sağlayıcılar tarayıcı kaynaklı (CORS) çağrıları engelleyebilir ve `http://` yerel adreslere HTTPS sayfadan erişilemez. Bu kısıtlar web sürümünde sağlayıcı bazında denenmedi; Android'de bu kısıt yoktur.
 
 ## Mimari
 
 ```
 Uygulama (Expo / React Native, web + Android)
-   │  hesap: kayıt/giriş/jeton yenileme
+   │  hesap: kayıt, giriş, Google, jeton yenileme
    ▼
 nichevo-backend (Fastify 5 + Postgres)  →  https://nichevo-api.fatihgo.com
 ```
 
 - **İstemci:** Expo SDK 54, React Native 0.81, expo-router, NativeWind. Web sürümü `expo export --platform web` ile statik üretilir ve Cloudflare Pages'ten yayınlanır.
 - **Hesap sunucusu:** `nichevo-backend/`. Yalnızca hesabı tutar; YouTube ve yapay zekâ çağrıları cihazdan doğrudan yapılır. Ayrıntı: [`nichevo-backend/README.md`](nichevo-backend/README.md).
+- **Google ile giriş:** sunucu tarafı yetkilendirme kodu akışı. İstemci tarayıcıyı açar, kod değişimi ve kimlik doğrulaması sunucuda yapılır; Google gizli anahtarı cihaza inmez. Aynı e-postayla şifreli hesap varsa ele geçirmeyi önlemek için hesaplar birleştirilmez.
 
 ## Geliştirme
 
@@ -96,14 +97,23 @@ pnpm test                         # uygulama
 cd nichevo-backend && npm test    # sunucu (gerçek Postgres gerekir)
 ```
 
-Uygulama hangi sunucuya bağlanacağını **derleme anında** `EXPO_PUBLIC_API_URL` ile öğrenir. Verilmezse uygulama yerel modda açılır ve şifre doğrulanmaz.
+Uygulama hangi sunucuya bağlanacağını **derleme anında** `EXPO_PUBLIC_API_URL` ile öğrenir. Verilmezse uygulama yerel modda açılır ve şifre doğrulanmaz. Expo, uygulama kökündeki `.env` dosyasını da okur; yerel modu denemek için `EXPO_NO_DOTENV=1` ve `--clear` kullan.
+
+### Google ile giriş kurulumu
+
+Google Cloud Console'da **Web uygulaması** türünde bir OAuth istemcisi oluştur ve yetkili yönlendirme URI'si olarak `<PUBLIC_URL>/v1/auth/google/callback` adresini ekle. `nichevo-backend/.env` içine `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` ve `PUBLIC_URL` yaz (örnek: `.env.example`). Üçü tanımlı değilse Google düğmesi uygulamada görünmez.
+
+OAuth izin ekranı "Testing" durumundayken yalnızca listedeki test kullanıcıları giriş yapabilir; herkese açmak için izin ekranını yayına almak gerekir (kapsamlar `openid email profile`, hassas değil).
 
 ### Web derlemesi ve yayın
 
 ```bash
-EXPO_PUBLIC_API_URL=https://nichevo-api.fatihgo.com npx expo export --platform web --output-dir dist
+EXPO_PUBLIC_API_URL=https://nichevo-api.fatihgo.com npx expo export --platform web --clear --output-dir dist
+node scripts/web-fix-assets.mjs dist       # ikon yazı tiplerini assets/vendor'a taşır (aşağıya bak)
 npx wrangler pages deploy dist --project-name nichevo --branch main
 ```
+
+`web-fix-assets.mjs` gerekli: Expo ikon yazı tiplerini `assets/node_modules/...` altına koyar, Cloudflare Pages `node_modules` klasörlerini yüklemez ve o adresler HTML'e düşüp ikonları görünmez yapar. Wrangler'ı başka bir projenin `functions/` klasörünün olduğu dizinden çalıştırma, o klasör pakete girer.
 
 Sunucu yalnızca `https://nichevo.fatihgo.com` ve yerel geliştirme adreslerinden gelen tarayıcı isteklerine CORS izni verir (`nichevo-backend/src/app.ts`).
 
@@ -111,15 +121,16 @@ Sunucu yalnızca `https://nichevo.fatihgo.com` ve yerel geliştirme adreslerinde
 
 ```bash
 EXPO_PUBLIC_API_URL=https://nichevo-api.fatihgo.com
-cd android && ./gradlew assembleRelease     # JDK 17
+cd android && ./gradlew :app:createBundleReleaseJsAndAssets --rerun assembleRelease   # JDK 17
 ```
 
-Paket adı `com.fatihkunak.nichevo`.
+Paket adı `com.fatihkunak.nichevo`. Gradle `EXPO_PUBLIC_*` değişikliklerini önbellekte izlemediği için JS paketi `--rerun` ile yeniden üretilir.
 
 ## Gizlilik
 
 - API anahtarların cihazında kalır.
-- Sunucu yalnızca e-posta, ad, kanal adı ve şifre özetini (scrypt) tutar. Hesabını uygulamadan silebilirsin.
+- Sunucu yalnızca e-posta, ad, kanal adı ve şifre özetini (scrypt) ya da Google hesap kimliğini tutar. Hesabını uygulamadan silebilirsin.
+- Ayrıntı: [fatihgo.com gizlilik politikası](https://fatihgo.com/uygulamalar/nichevo/gizlilik).
 
 ## Lisans
 

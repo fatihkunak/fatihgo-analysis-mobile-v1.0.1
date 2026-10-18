@@ -30,5 +30,37 @@ export async function verifyAccessToken(
   }
 }
 
+// Kısa ömürlü, amaca bağlı jetonlar (Google akışında `state` ve tek kullanımlık geçiş kodu).
+// `pur` alanı farklı amaçların birbiri yerine kullanılmasını engeller.
+export async function signPurposeToken(
+  secret: string,
+  purpose: string,
+  claims: Record<string, unknown>,
+  ttlSec: number,
+  subject?: string,
+): Promise<string> {
+  const jwt = new SignJWT({ ...claims, pur: purpose })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuer(ISSUER)
+    .setIssuedAt()
+    .setJti(randomBytes(12).toString("base64url"))
+    .setExpirationTime(`${ttlSec}s`);
+  if (subject) jwt.setSubject(subject);
+  return jwt.sign(key(secret));
+}
+
+export async function verifyPurposeToken(
+  secret: string,
+  purpose: string,
+  token: string,
+): Promise<Record<string, unknown> | null> {
+  try {
+    const { payload } = await jwtVerify(token, key(secret), { issuer: ISSUER, algorithms: ["HS256"] });
+    return payload.pur === purpose ? (payload as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
 export const newRefreshToken = (): string => randomBytes(32).toString("base64url");
 export const hashRefreshToken = (t: string): string => createHash("sha256").update(t).digest("hex");

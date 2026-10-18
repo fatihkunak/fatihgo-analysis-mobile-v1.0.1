@@ -8,7 +8,7 @@ telefon ──(adb reverse / Cloudflare Tunnel)──▶ Fastify :3102 ──▶
 ```
 
 ## Ne yapar
-Yalnızca **hesap**: kayıt, giriş, jeton yenileme, çıkış, profil, şifre değiştirme, hesap silme.
+Yalnızca **hesap**: kayıt, giriş (e-posta + şifre ya da Google), jeton yenileme, çıkış, profil, şifre değiştirme, hesap silme.
 API anahtarları (YouTube/AI sağlayıcıları) **cihazda kalır**, sunucuya hiç gönderilmez.
 
 | Uç nokta | Açıklama |
@@ -19,7 +19,11 @@ API anahtarları (YouTube/AI sağlayıcıları) **cihazda kalır**, sunucuya hi�
 | `POST /v1/auth/refresh` | `{refreshToken}` → yeni oturum (jeton döndürülür; eski jeton yeniden kullanılırsa tüm aile kapanır) |
 | `POST /v1/auth/logout` | `{refreshToken}` → 204 |
 | `POST /v1/auth/change-password` | Bearer + `{currentPassword, newPassword}`; eski tüm oturumlar ölür |
-| `GET/PATCH/DELETE /v1/me` | Profil; `DELETE` şifre ister, hesabı ve jetonları siler. `plan` istemciden değiştirilemez |
+| `GET /v1/auth/providers` | `{google: bool}`: Google girişi bu sunucuda açık mı (istemci düğmeyi buna göre gösterir) |
+| `GET /v1/auth/google/start?redirect=` | Google'a yönlendirir. `redirect` yalnızca izinli adreslerden biri olabilir (`nichevo://auth`, `https://nichevo.fatihgo.com/auth/callback`, yerel geliştirme) |
+| `GET /v1/auth/google/callback` | Google'ın geri dönüşü: kodu sunucuda değiştirir, kimliği doğrular, kullanıcıyı bulur/açar ve istemciye **tek kullanımlık kod** ile döner |
+| `POST /v1/auth/google/exchange` | `{code}` → normal oturum (2 dk geçerli, bir kez kullanılabilir) |
+| `GET/PATCH/DELETE /v1/me` | Profil; `DELETE` şifre ister (Google hesabı için `{confirm: true}`), hesabı ve jetonları siler. `plan` istemciden değiştirilemez |
 
 Oturum: 15 dk'lık erişim jetonu (HS256 JWT, `token_version` ile iptal edilebilir) + 60 gün'lük döndürülen yenileme jetonu (DB'de yalnızca SHA-256 özeti). Parolalar Node'un yerleşik `scrypt`'i ile (N=2¹⁵).
 

@@ -1,6 +1,7 @@
 // Uygulama genelinde tek AI girişi: seçili sağlayıcıyı (Profil > Yapay Zeka) kullanır.
 import { loadAiConfig } from "@/lib/ai-config";
 import { AiError, chat, resolve, type ChatTurn, type Creds } from "@/lib/ai-providers";
+import { parsePlan, planPrompt, type Phase } from "@/lib/plan";
 
 export type { ChatTurn };
 
@@ -34,6 +35,10 @@ export async function generateIdeas(niche: string): Promise<string[]> {
   const parsed = JSON.parse(stripFences(text));
   if (!Array.isArray(parsed)) throw new AiError("BAD_RESPONSE", "AI yanıtı beklenen formatta gelmedi.");
   return parsed.map(String).slice(0, 5);
+}
+
+export async function generatePlan(niche: string, topic: string): Promise<Phase[]> {
+  return parsePlan(await aiChat(ASSISTANT_SYSTEM, [{ role: "user", text: planPrompt(niche, topic) }], 2048));
 }
 
 export interface AiScene {

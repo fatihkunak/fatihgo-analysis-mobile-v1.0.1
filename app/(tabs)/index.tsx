@@ -1,6 +1,6 @@
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 
 import { Card, Chip, Gauge, Heatmap, SampleBadge, ScreenHeader } from "@/components/nv";
 import { ScreenContainer } from "@/components/screen-container";
@@ -14,6 +14,7 @@ import {
   topKeywords,
   topPhrases,
 } from "@/lib/insights";
+import { QuotaError, loadHeat, type Heat } from "@/lib/market";
 import { useSession } from "@/lib/session";
 import { loadYoutubeApiKey } from "@/lib/youtube-api";
 import { fetchChannelInfo, fetchTrendingVideoTexts, type ChannelInfo } from "@/lib/youtube-extras";
@@ -25,6 +26,9 @@ export default function DashboardScreen() {
   const [topicsLive, setTopicsLive] = useState(false);
   const [channel, setChannel] = useState<ChannelInfo | null>(null);
   const [note, setNote] = useState("");
+  const [heat, setHeat] = useState<Heat | null>(null);
+  const [heatState, setHeatState] = useState<"idle" | "loading" | "error">("idle");
+  const [heatAt, setHeatAt] = useState<number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -55,6 +59,20 @@ export default function DashboardScreen() {
           const c = await fetchChannelInfo(profile.channelId, key);
           if (alive) setChannel(c);
         } catch {}
+      }
+      if (alive) setHeatState("loading");
+      try {
+        const h = await loadHeat(key);
+        if (alive) {
+          setHeat(h.value);
+          setHeatAt(h.at);
+          setHeatState("idle");
+        }
+      } catch (e) {
+        if (alive) {
+          setHeatState("error");
+          setNote(e instanceof QuotaError ? e.message : "Rekabet haritası alınamadı: " + (e as Error).message);
+        }
       }
     })();
     return () => {
@@ -112,11 +130,29 @@ export default function DashboardScreen() {
           </Card>
         </View>
 
-        <Card title="Rekabet Isı Haritası" hint="niş × format">
-          <Heatmap rows={HEAT_ROWS} cols={HEAT_COLS} data={HEAT_DATA} />
-          <View className="flex-row items-center mt-2">
-            <SampleBadge />
-          </View>
+        <Card title="Rekabet Isı Haritası" hint={heat ? "TR · canlı · son 30 gün" : "niş × format"}>
+          {heatState === "loading" && !heat ? (
+            <View className="items-center py-6">
+              <ActivityIndicator />
+              <Text className="text-muted text-[11px] mt-2">YouTube'dan hesaplanıyor…</Text>
+            </View>
+          ) : (
+            <Heatmap
+              rows={heat?.rows ?? HEAT_ROWS}
+              cols={heat?.cols ?? HEAT_COLS}
+              data={heat?.data ?? HEAT_DATA}
+            />
+          )}
+          {heat ? (
+            <Text className="text-muted text-[10px] mt-2">
+              Hücre: son 30 günde yüklenen video sayısı (log ölçek). Kısa &lt;4 dk, Uzun &gt;20 dk, Canlı: biten yayınlar.
+              {heatAt ? ` Güncelleme: ${new Date(heatAt).toLocaleDateString("tr-TR")}.` : ""}
+            </Text>
+          ) : heatState !== "loading" ? (
+            <View className="flex-row items-center mt-2">
+              <SampleBadge />
+            </View>
+          ) : null}
         </Card>
 
         {note ? <Text className="text-muted text-[11px] text-center mt-1">{note}</Text> : null}

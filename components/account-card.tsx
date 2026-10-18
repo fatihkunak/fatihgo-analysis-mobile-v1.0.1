@@ -10,7 +10,10 @@ type Status = { ok: boolean; msg: string } | null;
 
 export function AccountCard() {
   const colors = useColors();
-  const { mode, offline, changePassword, deleteAccount } = useSession();
+  const { mode, offline, profile, changePassword, deleteAccount } =
+    useSession();
+  // Eski önbellekte alan yoksa şifreli say; yalnızca sunucu açıkça false derse Google hesabıdır
+  const hasPassword = profile?.hasPassword !== false;
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [pwStatus, setPwStatus] = useState<Status>(null);
@@ -23,22 +26,31 @@ export function AccountCard() {
     return (
       <Card title="Hesap">
         <Text className="text-muted text-[12px]">
-          Sunucu ayarlı değil: hesabın yalnızca bu cihazda tutuluyor. Şifre değiştirme ve hesap silme sunucu bağlıyken kullanılabilir.
+          Sunucu ayarlı değil: hesabın yalnızca bu cihazda tutuluyor. Şifre
+          değiştirme ve hesap silme sunucu bağlıyken kullanılabilir.
         </Text>
       </Card>
     );
   }
 
   const submitPassword = async () => {
-    if (!current) return setPwStatus({ ok: false, msg: "Mevcut şifreyi girin." });
-    if (next.length < 8) return setPwStatus({ ok: false, msg: "Yeni şifre en az 8 karakter olmalı." });
+    if (!current)
+      return setPwStatus({ ok: false, msg: "Mevcut şifreyi girin." });
+    if (next.length < 8)
+      return setPwStatus({
+        ok: false,
+        msg: "Yeni şifre en az 8 karakter olmalı.",
+      });
     setPwBusy(true);
     setPwStatus(null);
     try {
       await changePassword(current, next);
       setCurrent("");
       setNext("");
-      setPwStatus({ ok: true, msg: "Şifre değişti. Diğer cihazlardaki oturumlar kapatıldı." });
+      setPwStatus({
+        ok: true,
+        msg: "Şifre değişti. Diğer cihazlardaki oturumlar kapatıldı.",
+      });
     } catch (e) {
       setPwStatus({ ok: false, msg: (e as Error).message });
     } finally {
@@ -47,24 +59,29 @@ export function AccountCard() {
   };
 
   const submitDelete = () => {
-    if (!delPassword) return setDelStatus({ ok: false, msg: "Silmek için şifreni gir." });
-    Alert.alert("Hesabı sil", "Hesabın ve sunucudaki tüm verilerin kalıcı olarak silinir. Bu geri alınamaz.", [
-      { text: "Vazgeç", style: "cancel" },
-      {
-        text: "Kalıcı olarak sil",
-        style: "destructive",
-        onPress: async () => {
-          setDelBusy(true);
-          setDelStatus(null);
-          try {
-            await deleteAccount(delPassword); // başarılıysa oturum düşer, AuthGate girişe yönlendirir
-          } catch (e) {
-            setDelStatus({ ok: false, msg: (e as Error).message });
-            setDelBusy(false);
-          }
+    if (hasPassword && !delPassword)
+      return setDelStatus({ ok: false, msg: "Silmek için şifreni gir." });
+    Alert.alert(
+      "Hesabı sil",
+      "Hesabın ve sunucudaki tüm verilerin kalıcı olarak silinir. Bu geri alınamaz.",
+      [
+        { text: "Vazgeç", style: "cancel" },
+        {
+          text: "Kalıcı olarak sil",
+          style: "destructive",
+          onPress: async () => {
+            setDelBusy(true);
+            setDelStatus(null);
+            try {
+              await deleteAccount(hasPassword ? delPassword : undefined); // başarılıysa oturum düşer, AuthGate girişe yönlendirir
+            } catch (e) {
+              setDelStatus({ ok: false, msg: (e as Error).message });
+              setDelBusy(false);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   return (
@@ -72,28 +89,70 @@ export function AccountCard() {
       {offline ? (
         <Card>
           <Text style={{ color: colors.warning, fontSize: 12 }}>
-            Sunucuya ulaşılamıyor; önbellekteki profil gösteriliyor. Değişiklikler kaydedilemeyebilir.
+            Sunucuya ulaşılamıyor; önbellekteki profil gösteriliyor.
+            Değişiklikler kaydedilemeyebilir.
           </Text>
         </Card>
       ) : null}
 
-      <Card title="Şifre">
-        <Field label="Mevcut şifre" value={current} onChangeText={setCurrent} secure autoCapitalize="none" />
-        <Field label="Yeni şifre (en az 8 karakter)" value={next} onChangeText={setNext} secure autoCapitalize="none" />
-        <GradientButton title="Şifreyi değiştir" onPress={submitPassword} loading={pwBusy} small />
-        {pwStatus ? (
-          <Text style={{ color: pwStatus.ok ? colors.success : colors.error, fontSize: 12, marginTop: 8 }}>
-            {pwStatus.ok ? "✓ " : "✗ "}
-            {pwStatus.msg}
+      {hasPassword ? (
+        <Card title="Şifre">
+          <Field
+            label="Mevcut şifre"
+            value={current}
+            onChangeText={setCurrent}
+            secure
+            autoCapitalize="none"
+          />
+          <Field
+            label="Yeni şifre (en az 8 karakter)"
+            value={next}
+            onChangeText={setNext}
+            secure
+            autoCapitalize="none"
+          />
+          <GradientButton
+            title="Şifreyi değiştir"
+            onPress={submitPassword}
+            loading={pwBusy}
+            small
+          />
+          {pwStatus ? (
+            <Text
+              style={{
+                color: pwStatus.ok ? colors.success : colors.error,
+                fontSize: 12,
+                marginTop: 8,
+              }}
+            >
+              {pwStatus.ok ? "✓ " : "✗ "}
+              {pwStatus.msg}
+            </Text>
+          ) : null}
+        </Card>
+      ) : (
+        <Card title="Giriş yöntemi">
+          <Text className="text-muted text-[12px]">
+            Bu hesap Google ile açıldı ({profile?.email}); şifresi yok. Oturumu
+            Google hesabınla açarsın.
           </Text>
-        ) : null}
-      </Card>
+        </Card>
+      )}
 
       <Card title="Hesabı sil">
         <Text className="text-muted text-[12px] mb-2">
-          Hesabın ve sunucudaki verilerin kalıcı olarak silinir. API anahtarların yalnızca bu cihazda olduğu için ayrıca silinmez.
+          Hesabın ve sunucudaki verilerin kalıcı olarak silinir. API
+          anahtarların yalnızca bu cihazda olduğu için ayrıca silinmez.
         </Text>
-        <Field label="Şifren" value={delPassword} onChangeText={setDelPassword} secure autoCapitalize="none" />
+        {hasPassword ? (
+          <Field
+            label="Şifren"
+            value={delPassword}
+            onChangeText={setDelPassword}
+            secure
+            autoCapitalize="none"
+          />
+        ) : null}
         <Pressable
           onPress={submitDelete}
           disabled={delBusy}
@@ -106,10 +165,14 @@ export function AccountCard() {
             opacity: delBusy ? 0.5 : 1,
           }}
         >
-          <Text style={{ color: colors.error, fontWeight: "700" }}>Hesabı kalıcı sil</Text>
+          <Text style={{ color: colors.error, fontWeight: "700" }}>
+            Hesabı kalıcı sil
+          </Text>
         </Pressable>
         {delStatus ? (
-          <Text style={{ color: colors.error, fontSize: 12, marginTop: 8 }}>✗ {delStatus.msg}</Text>
+          <Text style={{ color: colors.error, fontSize: 12, marginTop: 8 }}>
+            ✗ {delStatus.msg}
+          </Text>
         ) : null}
       </Card>
     </>

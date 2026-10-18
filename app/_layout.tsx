@@ -37,6 +37,7 @@ function AuthGate() {
 
   useEffect(() => {
     if (!ready) return;
+    if (group === "auth") return; // Google dönüş sayfası: kodu oturuma çevirirken yönlendirme yapma
     if (!profile) {
       if (group !== "(auth)") router.replace("/(auth)/login");
     } else if (!profile.onboarded) {

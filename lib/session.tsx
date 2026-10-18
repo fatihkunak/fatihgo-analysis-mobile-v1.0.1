@@ -1,6 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { Alert } from "react-native";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Platform } from "react-native";
 
 import * as api from "@/lib/api";
 
@@ -13,6 +15,8 @@ export type Profile = {
   language: "Türkçe" | "English";
   notifications: boolean;
   onboarded: boolean;
+  /** Google ile açılan hesaplarda false (şifre değiştirilemez, silme açık onayla yapılır) */
+  hasPassword: boolean;
 };
 
 /** server: hesap sunucuda (EXPO_PUBLIC_API_URL tanımlı) · local: sunucu yok, profil yalnızca bu cihazda */
@@ -30,10 +34,16 @@ type SessionValue = {
   offline: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (input: SignUpInput) => Promise<void>;
+  /** Sunucuda Google OAuth tanımlı mı (düğmeyi göstermek için) */
+  googleAvailable: boolean;
+  /** Native: tarayıcı sekmesi açar, dönünce oturumu kurar. Web: sayfayı Google'a yönlendirir. */
+  signInWithGoogle: () => Promise<void>;
+  /** Geri dönüş sayfasının getirdiği tek kullanımlık kodu oturuma çevirir */
+  completeGoogleSignIn: (code: string) => Promise<void>;
   update: (patch: Partial<Profile>) => Promise<void>;
   signOut: () => Promise<void>;
   changePassword: (current: string, next: string) => Promise<void>;
-  deleteAccount: (password: string) => Promise<void>;
+  deleteAccount: (password?: string) => Promise<void>;
 };
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -47,6 +57,7 @@ const fromServer = (u: api.ServerUser): Profile => ({
   language: u.language === "en" ? "English" : "Türkçe",
   notifications: u.notifications,
   onboarded: u.onboarded,
+  hasPassword: u.hasPassword,
 });
 
 const toServerPatch = (p: Partial<Profile>) => ({
@@ -67,6 +78,7 @@ const localProfile = (email: string, over: Partial<Profile> = {}): Profile => ({
   language: "Türkçe",
   notifications: true,
   onboarded: false,
+  hasPassword: true,
   ...over,
 });
 
@@ -75,6 +87,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [offline, setOffline] = useState(false);
+  const [googleAvailable, setGoogleAvailable] = useState(false);
+  const googleCodes = useRef(new Map<string, Promise<void>>());
+
+  useEffect(() => {
+    if (mode === "server") api.fetchProviders().then((p) => setGoogleAvailable(p.google));
+  }, [mode]);
 
   const cache = useCallback(async (p: Profile | null) => {
     try {
@@ -155,6 +173,37 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [mode, apply],
   );
 
+  // Aynı kod iki yoldan gelebilir (tarayıcı sonucu + derin bağlantı); tek kullanımlık olduğu için bir kez değiştirilir
+  const completeGoogleSignIn = useCallback<SessionValue["completeGoogleSignIn"]>(
+    (code) => {
+      let p = googleCodes.current.get(code);
+      if (!p) {
+        p = (async () => {
+          await apply(fromServer(await api.exchangeGoogleCode(code)));
+          setOffline(false);
+        })();
+        googleCodes.current.set(code, p);
+      }
+      return p;
+    },
+    [apply],
+  );
+
+  const signInWithGoogle = useCallback<SessionValue["signInWithGoogle"]>(async () => {
+    if (mode !== "server") throw new Error("Google girişi için Nichevo sunucusu gerekli.");
+    if (Platform.OS === "web") {
+      window.location.assign(api.googleStartUrl(`${window.location.origin}/auth/callback`));
+      return new Promise<void>(() => {}); // sayfa terk edilir; dönüşte /auth/callback tamamlar
+    }
+    const redirect = Linking.createURL("auth");
+    const res = await WebBrowser.openAuthSessionAsync(api.googleStartUrl(redirect), redirect);
+    if (res.type !== "success") return; // kullanıcı vazgeçti
+    const q = Linking.parse(res.url).queryParams ?? {};
+    if (typeof q.error === "string") throw new Error(api.googleErrorMessage(q.error));
+    if (typeof q.code !== "string") throw new Error(api.googleErrorMessage(""));
+    await completeGoogleSignIn(q.code);
+  }, [mode, completeGoogleSignIn]);
+
   const update = useCallback<SessionValue["update"]>(
     async (patch) => {
       if (!profile) return;
@@ -193,8 +242,22 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ ready, profile, mode, offline, signIn, signUp, update, signOut, changePassword, deleteAccount }),
-    [ready, profile, mode, offline, signIn, signUp, update, signOut, changePassword, deleteAccount],
+    () => ({
+      ready,
+      profile,
+      mode,
+      offline,
+      signIn,
+      signUp,
+      googleAvailable,
+      signInWithGoogle,
+      completeGoogleSignIn,
+      update,
+      signOut,
+      changePassword,
+      deleteAccount,
+    }),
+    [ready, profile, mode, offline, signIn, signUp, googleAvailable, signInWithGoogle, completeGoogleSignIn, update, signOut, changePassword, deleteAccount],
   );
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

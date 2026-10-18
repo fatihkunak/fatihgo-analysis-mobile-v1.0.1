@@ -3,6 +3,7 @@ import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from "react-native";
 
 import { Field, isEmail } from "@/components/field";
+import { GoogleSignIn } from "@/components/google-button";
 import { GradientButton, Logo } from "@/components/nv";
 import { ScreenContainer } from "@/components/screen-container";
 import { useSession } from "@/lib/session";
@@ -47,6 +48,7 @@ export default function LoginScreen() {
           <Field label="Şifre" value={password} onChangeText={setPassword} secure placeholder="••••••" />
           {error ? <Text className="text-error text-[12px] mb-2">{error}</Text> : null}
           <GradientButton title="Giriş Yap" onPress={submit} loading={busy} style={{ marginTop: 6 }} />
+          <GoogleSignIn onError={setError} />
           <Pressable onPress={() => router.push("/(auth)/register")} style={{ alignItems: "center", marginTop: 20 }}>
             <Text className="text-info font-semibold">Yeni Kayıt Ol</Text>
           </Pressable>

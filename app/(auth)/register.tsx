@@ -3,6 +3,7 @@ import { useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text } from "react-native";
 
 import { Field, isEmail } from "@/components/field";
+import { GoogleSignIn } from "@/components/google-button";
 import { GradientButton } from "@/components/nv";
 import { ScreenContainer } from "@/components/screen-container";
 import { useSession } from "@/lib/session";
@@ -49,6 +50,7 @@ export default function RegisterScreen() {
           <Field label="Şifre" value={password} onChangeText={setPassword} secure />
           {error ? <Text className="text-error text-[12px] mb-2">{error}</Text> : null}
           <GradientButton title="Kayıt Ol" onPress={submit} loading={busy} style={{ marginTop: 6 }} />
+          <GoogleSignIn onError={setError} />
           <Text className="text-muted text-center text-[12px] mt-4">
             {mode === "server" ? "Kanalınızı hemen optimize edin." : "Sunucu ayarlı değil: hesap yalnızca bu cihazda tutulur."}
           </Text>

@@ -5,17 +5,11 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, Touch
 import { Card, GradientButton, ScreenHeader } from "@/components/nv";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
-import { aiStatus, generateIdeas as aiGenerateIdeas, templateIdeas } from "@/lib/ai";
+import { aiStatus, generateIdeas as aiGenerateIdeas, generatePlan, templateIdeas } from "@/lib/ai";
 import { WEEK_DAYS } from "@/lib/insights";
+import { templatePlan, type Phase } from "@/lib/plan";
 import { sharePlanPDF, type PlanData } from "@/lib/report-service";
 import { bumpUsage } from "@/lib/usage";
-
-interface Phase {
-  phase: string;
-  time: string;
-  desc: string;
-  script: string;
-}
 
 type PlanEvent = { id: string; day: number; title: string };
 
@@ -26,6 +20,8 @@ export default function PlannerScreen() {
   const [niche, setNiche] = useState("");
   const [topic, setTopic] = useState("");
   const [plan, setPlan] = useState<Phase[]>([]);
+  const [planBusy, setPlanBusy] = useState(false);
+  const [planNote, setPlanNote] = useState("");
   const [isExporting, setIsExporting] = useState(false);
 
   const [events, setEvents] = useState<PlanEvent[]>([]);
@@ -74,53 +70,28 @@ export default function PlannerScreen() {
     }
   };
 
-  const handleGeneratePlan = () => {
+  const handleGeneratePlan = async () => {
     if (!niche.trim() || !topic.trim()) {
       Alert.alert("Uyarı", "Lütfen niş ve konu girin.");
       return;
     }
-
-    // Generate 6-phase plan
-    const newPlan: Phase[] = [
-      {
-        phase: "Declare",
-        time: "0-5s",
-        desc: `${niche} dünyasına hızlı giriş. ${topic} hakkında merak uyandırıcı bir soru sor.`,
-        script: `Hiç ${topic} konusunu böyle düşünmüş müydünüz?`,
-      },
-      {
-        phase: "Assess",
-        time: "5-20s",
-        desc: "Mevcut sorunu tanımla. Neden bu videoyu izlemeliler?",
-        script: "Çoğu insan bu konuda yanılıyor, işte gerçek...",
-      },
-      {
-        phase: "Isolate",
-        time: "20-40s",
-        desc: "Çözümü odak noktasına al. Gereksiz detayları ele.",
-        script: "Şimdi sadece en önemli kısma odaklanalım.",
-      },
-      {
-        phase: "Process",
-        time: "40-120s",
-        desc: "Adım adım uygulama. Teknik detayları basitçe anlat.",
-        script: "İlk adım olarak şunu yapıyoruz...",
-      },
-      {
-        phase: "Build",
-        time: "120-150s",
-        desc: "Momentumu artır. Sonuca yaklaştığını hissettir.",
-        script: "Ve işte en heyecan verici kısma geliyoruz!",
-      },
-      {
-        phase: "Reveal",
-        time: "150s+",
-        desc: "Büyük final ve CTA. İzleyiciyi harekete geçir.",
-        script: "Sonuç ortada! Siz ne düşünüyorsunuz? Yorumlarda buluşalım.",
-      },
-    ];
-
-    setPlan(newPlan);
+    const n = niche.trim();
+    const t = topic.trim();
+    setPlanBusy(true);
+    setPlanNote("");
+    try {
+      if ((await aiStatus()).creds) {
+        setPlan(await generatePlan(n, t));
+      } else {
+        setPlan(templatePlan(n, t));
+        setPlanNote("AI sağlayıcı ayarlı değil (Profil > Yapay Zeka); kalıp plan gösteriliyor.");
+      }
+    } catch (e) {
+      setPlan(templatePlan(n, t));
+      setPlanNote("AI hatası (" + (e as Error).message + "); kalıp plan gösteriliyor.");
+    } finally {
+      setPlanBusy(false);
+    }
     bumpUsage("plans");
   };
 
@@ -256,12 +227,13 @@ export default function PlannerScreen() {
             style={{ backgroundColor: "rgba(13,6,32,0.7)" }}
             placeholderTextColor={colors.muted}
           />
-          <GradientButton title="Plan Oluştur" onPress={handleGeneratePlan} />
+          <GradientButton title="Plan Oluştur" onPress={handleGeneratePlan} loading={planBusy} />
         </Card>
 
         {plan.length > 0 && (
           <View>
             <Text className="text-lg font-semibold text-foreground mb-3">Çekim Planı</Text>
+            {planNote ? <Text className="text-muted text-[11px] mb-2">{planNote}</Text> : null}
 
             {plan.map((p, idx) => (
               <View

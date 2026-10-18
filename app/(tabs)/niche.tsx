@@ -15,6 +15,7 @@ import { useLocalSearchParams } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { Card, Chip, SampleBadge, ScreenHeader, Sparkline } from "@/components/nv";
 import { CATEGORIES, RISING_NICHES, formatMultiple } from "@/lib/insights";
+import { QuotaError, loadRising, type RisingNiche } from "@/lib/market";
 import { bumpUsage } from "@/lib/usage";
 import { useState, useEffect, useCallback } from "react";
 import { useColors } from "@/hooks/use-colors";
@@ -46,6 +47,9 @@ export default function NicheScreen() {
   const [youtubeApiKey, setYoutubeApiKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [scanInfo, setScanInfo] = useState<{ found: number } | null>(null);
+  const [rising, setRising] = useState<RisingNiche[] | null>(null);
+  const [risingState, setRisingState] = useState<"idle" | "loading" | "error">("idle");
+  const [risingNote, setRisingNote] = useState("");
   const params = useLocalSearchParams<{ q?: string }>();
 
   // Pano'dan gelen konu başlığını arama kutusuna yaz
@@ -58,6 +62,29 @@ export default function NicheScreen() {
     loadYoutubeApiKey().then(setYoutubeApiKey).catch(console.error);
   }, []);
 
+  // Yükselen nişler: anahtar varsa canlı (24 saat önbellekli), yoksa etiketli örnek
+  useEffect(() => {
+    if (!youtubeApiKey) return;
+    let alive = true;
+    setRisingState("loading");
+    loadRising(youtubeApiKey)
+      .then((r) => {
+        if (alive) {
+          setRising(r.value);
+          setRisingState("idle");
+        }
+      })
+      .catch((e) => {
+        if (alive) {
+          setRisingState("error");
+          setRisingNote(e instanceof QuotaError ? e.message : "Yükselen nişler alınamadı: " + (e as Error).message);
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, [youtubeApiKey]);
+
   const handleScan = useCallback(async () => {
     if (!query.trim()) {
       Alert.alert("Uyarı", "Lütfen bir arama terimi girin.");
@@ -69,69 +96,24 @@ export default function NicheScreen() {
     setScanInfo(null);
 
     try {
-      let results: ChannelSearchResult[] = [];
-
-      if (youtubeApiKey) {
-        try {
-          results = await searchNicheChannels(
-            query,
-            youtubeApiKey,
-            parseInt(maxResults, 10) || 20,
-            parseInt(ageDays, 10) || 0
-          );
-        } catch (apiError) {
-          console.error("API Hatası:", apiError);
-          setError(
-            "YouTube API hatası: " + (apiError as Error).message
-          );
-        }
+      // Sahte kanal üretilmez: anahtar yoksa ya da API hata verirse açıkça söylenir
+      if (!youtubeApiKey) {
+        setError("Tarama için Profil ve Ayarlar > YouTube Data API v3 altına kendi anahtarını ekle.");
+        setIsLoading(false);
+        return;
       }
-
-      // If no API results, use mock data
-      if (results.length === 0) {
-        if (!youtubeApiKey) {
-          setError(
-            "YouTube API anahtarı bulunamadı. Mock veriler kullanılıyor."
-          );
-        }
-
-        const mockResults: ChannelSearchResult[] = [
-          {
-            id: "UCabc123",
-            channelName: "Örnek Kanal 1",
-            subs: 15000,
-            views: 500000,
-            age: 365,
-            ratio: 3.0,
-            isOutlier: false,
-            videoId: "dQw4w9WgXcQ",
-            videoTitle: "Örnek Video Başlığı 1",
-          },
-          {
-            id: "UCdef456",
-            channelName: "Örnek Kanal 2",
-            subs: 2500,
-            views: 1200000,
-            age: 180,
-            ratio: 48.0,
-            isOutlier: true,
-            videoId: "jNQXAC9IVRw",
-            videoTitle: "Örnek Video Başlığı 2",
-          },
-          {
-            id: "UCghi789",
-            channelName: "Örnek Kanal 3",
-            subs: 50000,
-            views: 800000,
-            age: 730,
-            ratio: 1.6,
-            isOutlier: false,
-            videoId: "9bZkp7q19f0",
-            videoTitle: "Örnek Video Başlığı 3",
-          },
-        ];
-
-        results = mockResults;
+      let results: ChannelSearchResult[] = [];
+      try {
+        results = await searchNicheChannels(
+          query,
+          youtubeApiKey,
+          parseInt(maxResults, 10) || 20,
+          parseInt(ageDays, 10) || 0
+        );
+      } catch (apiError) {
+        setError("YouTube API hatası: " + (apiError as Error).message);
+        setIsLoading(false);
+        return;
       }
 
       // Apply filters
@@ -243,6 +225,8 @@ export default function NicheScreen() {
     </View>
   );
 
+  const shownRising: { name: string; growth: number; series: number[] }[] = rising ?? RISING_NICHES;
+
   const selectedAgeLabel =
     AGE_OPTIONS.find((o) => o.value === ageDays)?.label || "180 gün";
 
@@ -251,23 +235,43 @@ export default function NicheScreen() {
       <ScrollView showsVerticalScrollIndicator={false}>
         <ScreenHeader title="Konu Keşfi" />
 
-        <Card title="Yükselen Nişler" hint="son 7 dönem">
-          <View className="flex-row">
-            {RISING_NICHES.slice(0, 2).map((n) => (
-              <View key={n.name} style={{ flex: 1, marginRight: 8 }}>
-                <Text className="text-foreground text-[12px]" numberOfLines={1}>
-                  {n.name} <Text style={{ color: colors.success }}>+{n.growth}%</Text>
-                </Text>
-                <Sparkline data={n.series} height={56} color={n === RISING_NICHES[0] ? "#38BDF8" : "#D946EF"} />
+        <Card title="Yükselen Nişler" hint={rising ? "TR · canlı · son 4 hafta" : "son 7 dönem"}>
+          {risingState === "loading" && !rising ? (
+            <View className="items-center py-6">
+              <ActivityIndicator />
+              <Text className="text-muted text-[11px] mt-2">YouTube'dan hesaplanıyor…</Text>
+            </View>
+          ) : (
+            <>
+              <View className="flex-row">
+                {shownRising.slice(0, 2).map((n, i) => (
+                  <View key={n.name} style={{ flex: 1, marginRight: 8 }}>
+                    <Text className="text-foreground text-[12px]" numberOfLines={1}>
+                      {n.name}{" "}
+                      <Text style={{ color: n.growth >= 0 ? colors.success : colors.error }}>
+                        {n.growth >= 0 ? "+" : ""}
+                        {n.growth}%
+                      </Text>
+                    </Text>
+                    <Sparkline data={n.series} height={56} color={i === 0 ? "#38BDF8" : "#D946EF"} />
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-          <View className="flex-row flex-wrap mt-2">
-            {RISING_NICHES.map((n) => (
-              <Chip key={n.name} label={n.name} onPress={() => setQuery(n.name)} />
-            ))}
-          </View>
-          <SampleBadge />
+              <View className="flex-row flex-wrap mt-2">
+                {shownRising.map((n) => (
+                  <Chip key={n.name} label={n.name} onPress={() => setQuery(n.name)} />
+                ))}
+              </View>
+              {rising ? (
+                <Text className="text-muted text-[10px] mt-1">
+                  Değişim: haftalık video yükleme hacminin dört haftalık farkı (YouTube arama sonuç sayısı).
+                </Text>
+              ) : risingState !== "loading" ? (
+                <SampleBadge />
+              ) : null}
+              {risingNote ? <Text className="text-muted text-[10px] mt-1">{risingNote}</Text> : null}
+            </>
+          )}
         </Card>
 
         <Text className="text-muted text-[12px] mb-2">Kategori Filtreleri</Text>
@@ -289,7 +293,7 @@ export default function NicheScreen() {
           <Text className="text-xs font-semibold text-foreground text-center">
             {youtubeApiKey
               ? "✅ YouTube API Bağlı - Gerçek veriler"
-              : "⚠️ YouTube API Anahtarı Gerekli - Mock veriler kullanılıyor"}
+              : "⚠️ YouTube API anahtarı gerekli - tarama için Profil'den ekleyin"}
           </Text>
         </View>
 

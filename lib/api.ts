@@ -18,6 +18,8 @@ export type ServerUser = {
   language: "tr" | "en";
   notifications: boolean;
   onboarded: boolean;
+  /** Google ile açılan hesaplarda false */
+  hasPassword: boolean;
 };
 
 type Session = { user: ServerUser; accessToken: string; refreshToken: string; expiresIn: number };
@@ -154,7 +156,33 @@ export async function changePassword(currentPassword: string, newPassword: strin
   return s.user;
 }
 
-export async function deleteAccount(password: string) {
-  await authed<void>("/v1/me", "DELETE", { password });
+/** Şifreli hesap şifresini gönderir; Google hesabı (şifresiz) `undefined` verip açık onay gönderir. */
+export async function deleteAccount(password?: string) {
+  await authed<void>("/v1/me", "DELETE", password ? { password } : { confirm: true });
   await clearTokens();
 }
+
+// --- Google ile giriş (sunucu tarafı kod akışı) ---
+export const fetchProviders = async (): Promise<{ google: boolean }> => {
+  try {
+    return await raw<{ google: boolean }>("/v1/auth/providers", { method: "GET" });
+  } catch {
+    return { google: false };
+  }
+};
+
+export const googleStartUrl = (redirect: string) => `${RAW}/v1/auth/google/start?redirect=${encodeURIComponent(redirect)}`;
+
+export async function exchangeGoogleCode(code: string) {
+  const s = await raw<Session>("/v1/auth/google/exchange", { method: "POST", body: { code } });
+  await storeTokens(s);
+  return s.user;
+}
+
+const GOOGLE_ERRORS: Record<string, string> = {
+  GOOGLE_DENIED: "Google girişi iptal edildi.",
+  GOOGLE_FAILED: "Google girişi tamamlanamadı, tekrar dene.",
+  EMAIL_UNVERIFIED: "Google e-postan doğrulanmamış, bu hesapla giriş yapılamaz.",
+  EMAIL_EXISTS: "Bu e-posta şifreyle kayıtlı. Önce e-posta ve şifrenle giriş yap.",
+};
+export const googleErrorMessage = (code: string) => GOOGLE_ERRORS[code] ?? "Google girişi başarısız oldu.";
